@@ -4,3 +4,13 @@
 .schooltoggle input{width:17px;height:17px;margin:0;accent-color:#13776f}
 .schoolfields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px;padding:4px 13px 13px;background:#f3f9f8;border:1px solid #dceeea;border-radius:10px}
 @media(max-width:470px){.schoolfields{grid-template-columns:1fr}}
+
+/* Authentication */
+.login-page{min-height:100vh;display:grid;place-items:center;padding:20px;background:linear-gradient(135deg,#0f1e32,#175e5b)}
+.login-card{background:#fff;padding:34px;border-radius:20px;width:min(100%,430px);box-shadow:0 20px 70px #08162360}
+.login-card .brand{background:#101d32;border-radius:12px;padding:13px;margin-bottom:22px}
+.login-card h1{font-size:27px;margin:0}
+.login-card>p{color:#708095;font-size:13px}
+.login-card button[type=submit]{width:100%;margin:20px 0}
+.login-card .muted{font-size:11px}
+.signout{padding:6px!important;border:1px solid #536b7e!important;background:transparent!important;color:white!important;font-size:11px!important;margin-top:12px}
