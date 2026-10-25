@@ -1,17 +1,18 @@
 # Staff marking workflow
 
-The workspace supports existing assessment uploads, AI script queues, human moderation and final approval. It does not author assessments or claim that a trained marking model is available.
+The workspace supports existing assessment uploads, AI script queues, required teacher/lecturer review of AI-suggested marks and highlights, independent HOD/academic moderation, and final approval. It does not author assessments or claim that a trained marking model is available.
 
 ## Dashboards and queues
 
-Teachers start on an overview of allocated Grade 8–12 subjects. Lecturers and professors see their faculties and modules. HODs start in moderation; principals start in approvals. Administrators have an organisation overview and the queues allowed by their account roles.
+Teachers start on an overview of allocated Grade 8–12 subjects. Lecturers and professors see their faculties and modules. HODs start in moderation of teacher-reviewed results; principals start in approvals. Administrators have an organisation overview and the queues allowed by their account roles.
 
 Dashboard totals come from AI batch scripts for the selected school/institution context. They do not use legacy text-submission totals. The needs-attention card includes failed processing and flagged scripts; awaiting-moderation totals also include flagged scripts, so these cards are not additive.
 
 The work queues are:
 
 - **AI marking:** Uploaded, Queued, Processing and Failed.
-- **Moderation:** NeedsAttention and AwaitingModeration.
+- **Teacher review:** NeedsAttention, AwaitingModeration (legacy API status displayed as awaiting teacher review) and ReturnedToTeacher.
+- **HOD moderation:** TeacherReviewed.
 - **Approvals:** Moderated.
 - **Completed:** Approved.
 
@@ -38,9 +39,9 @@ Upload progress is actual browser-reported byte transfer for the entire multipar
 
 The dedicated desk presents the script, approved memo/question-paper reference and question-level marks together on wide screens. Smaller screens stack the panes. Review circles can navigate to the relevant script page. Previous/next controls and **Alt+J / Alt+K** move through the queue snapshot opened by the reviewer.
 
-Draft question marks and reasons stay in React memory across scripts and workspace navigation. They are not stored in browser storage or sent to the server until the reviewer confirms moderation. They clear on sign-out, reload or tab closure; the browser receives an unsaved-work warning while drafts exist. Discard draft removes a single script's draft.
+Draft question marks and review reasons stay in React memory across scripts and workspace navigation. They are not stored in browser storage or sent to the server until the reviewer confirms moderation. They clear on sign-out, reload or tab closure; the browser receives an unsaved-work warning while drafts exist. Discard draft removes a single script's draft.
 
-A draft records its starting revision. If the server revision changes, submission is blocked until the draft is discarded and current marks reviewed. Final backend concurrency checks remain in place. Approval remains a separate action after moderation, and approved work is read-only.
+A draft records its starting revision. If the server revision changes, submission is blocked until the draft is discarded and current marks reviewed. Final backend concurrency checks remain in place. Approval remains a separate action after teacher review and HOD moderation, and approved work is read-only.
 
 Existing original-file downloads, approved-results CSV, audit history and training-example capture remain available from the desk.
 
