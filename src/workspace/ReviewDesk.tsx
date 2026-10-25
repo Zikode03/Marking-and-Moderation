@@ -6,8 +6,8 @@ import type { WorkRow } from './markingData';
 import TrainingExamples from './TrainingExamples';
 const Viewer = lazy(() => import('./ScriptPageViewer'));
 const emptyAnnotations: [] = [];
-export default function ReviewDesk({ row, position, count, canModerate, canApprove, canLabel, manager, draft, onDraftChange, onMove, onClose, onSaved }: {
-  row: WorkRow; position: number; count: number; canModerate: boolean; canApprove: boolean; canLabel: boolean; manager: boolean; draft?: ReviewDraft;
+export default function ReviewDesk({ row, position, count, canReview = false, canModerate, canApprove, canLabel, manager, draft, onDraftChange, onMove, onClose, onSaved }: {
+  row: WorkRow; position: number; count: number; canReview?: boolean; canModerate: boolean; canApprove: boolean; canLabel: boolean; manager: boolean; draft?: ReviewDraft;
   onDraftChange: (draft?: ReviewDraft) => void; onMove: (offset: number) => void; onClose: () => void; onSaved: () => Promise<void>;
 }) {
   const [detail, setDetail] = useState<BatchDetail | null>(null); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
@@ -41,7 +41,7 @@ export default function ReviewDesk({ row, position, count, canModerate, canAppro
       <div className="review-columns">
         <section className="review-document"><h3>Candidate script</h3><Suspense fallback={<p role="status">Loading script viewer…</p>}><Viewer batchId={row.batchId} scriptId={row.id} annotations={script.result?.questions.flatMap(q => q.annotations || []) || emptyAnnotations} focusPage={focus.page} focusRequest={focus.request}/></Suspense></section>
         <section className="review-document"><label>Reference document<select value={document} onChange={e => setDocument(e.target.value as 'memo' | 'paper')}><option value="memo">Approved memorandum</option><option value="paper">Question paper</option></select></label><Suspense fallback={<p role="status">Loading reference…</p>}><Viewer key={`${row.batchId}-${document}`} batchId={row.batchId} scriptId={document} annotations={emptyAnnotations} title={document === 'memo' ? 'Approved memorandum' : 'Question paper'}/></Suspense></section>
-        <AiBatchReview key={row.id} script={script} canModerate={canModerate} canApprove={canApprove} draft={draft} onDraftChange={onDraftChange} onBusyChange={setBusy} embedded onFocusPage={page => setFocus(previous => ({ page, request: previous.request + 1 }))} onSaved={async () => { await refresh(); await onSaved(); }}/>
+        <AiBatchReview key={row.id} script={script} canReview={canReview} canModerate={canModerate} canApprove={canApprove} draft={draft} onDraftChange={onDraftChange} onBusyChange={setBusy} embedded onFocusPage={page => setFocus(previous => ({ page, request: previous.request + 1 }))} onSaved={async () => { await refresh(); await onSaved(); }}/>
       </div>
       <div className="ai-file-actions"><button className="secondary" onClick={() => void downloadBatchFile(row.batchId, 'results', 'approved-results.csv').catch(cause => setError(String(cause)))}>Export approved batch results</button></div>
       <TrainingExamples key={row.batchId} batch={detail!} canLabel={canLabel} canVerify={canModerate} canExport={manager}/>
