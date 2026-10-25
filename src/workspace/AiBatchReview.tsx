@@ -7,7 +7,7 @@ export type QuestionMark = { number: string; maxMarks: number; marks: number | n
 export type MarkedScript = { id: string; batchId: string; candidate: string; fileName: string; status: string; revision: number; total: number | null; error: string | null; model: string | null; result: { needsAttention: boolean; summary: string; questions: QuestionMark[] } | null; audit: { at: string; actor: string; action: string; reason: string }[] };
 export type BatchSummary = { id: string; assessmentId: string; createdAt?: string; paperName: string; memoName: string; scriptLanguage?: string; memoLanguage?: string; scripts: { id: string; candidate: string; status: string; error: string | null }[] };
 export type BatchDetail = Omit<BatchSummary, 'scripts'> & { scripts: MarkedScript[] };
-export const statusLabel = (status: string) => ({ Uploaded: 'Uploaded', Queued: 'Queued', Processing: 'AI marking', NeedsAttention: 'Needs attention', AwaitingModeration: 'Awaiting moderation', Moderated: 'Awaiting approval', Approved: 'Approved', Failed: 'Processing failed' }[status] || status);
+export const statusLabel = (status: string) => ({ Uploaded: 'Uploaded', Queued: 'Queued', Processing: 'AI marking', NeedsAttention: 'Needs attention', AwaitingModeration: 'Awaiting teacher review', TeacherReviewed: 'Awaiting HOD moderation', ReturnedToTeacher: 'Returned to teacher', Moderated: 'Awaiting approval', Approved: 'Approved', Failed: 'Processing failed' }[status] || status);
 
 export async function downloadBatchFile(batch: string, file: string, filename: string) {
   const blob = await request<Blob>(`/api/ai/batches/${batch}/${file === "results" ? "results" : `files/${file}`}`, { headers: { Accept: 'application/octet-stream' } });
@@ -15,7 +15,7 @@ export async function downloadBatchFile(batch: string, file: string, filename: s
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 export type ReviewDraft = { revision: number; marks: Record<string, string>; reason: string };
-export default function AiBatchReview({ script, canModerate, canApprove, onSaved, draft, onDraftChange, embedded = false, onFocusPage, onBusyChange }: { script: MarkedScript; canModerate: boolean; canApprove: boolean; onSaved: () => Promise<void>; draft?: ReviewDraft; onDraftChange?: (draft?: ReviewDraft) => void; embedded?: boolean; onFocusPage?: (page: number) => void; onBusyChange?: (busy: boolean) => void }) {
+export default function AiBatchReview({ script, canReview = false, canModerate, canApprove, onSaved, draft, onDraftChange, embedded = false, onFocusPage, onBusyChange }: { script: MarkedScript; canReview?: boolean; canModerate: boolean; canApprove: boolean; onSaved: () => Promise<void>; draft?: ReviewDraft; onDraftChange?: (draft?: ReviewDraft) => void; embedded?: boolean; onFocusPage?: (page: number) => void; onBusyChange?: (busy: boolean) => void }) {
   const [localDraft, setLocalDraft] = useState<ReviewDraft | undefined>();
   const currentDraft = onDraftChange ? draft : localDraft;
   const marks = currentDraft?.marks || {}; const reason = currentDraft?.reason || '';
@@ -26,16 +26,18 @@ export default function AiBatchReview({ script, canModerate, canApprove, onSaved
   const [preview, setPreview] = useState(false); const [focusPage, setFocusPage] = useState(1);
   const [focusRequest, setFocusRequest] = useState(0);
   const annotations = script.result?.questions.flatMap(question => question.annotations || []) || [];
-  const reviewable = canModerate && ['AwaitingModeration', 'NeedsAttention'].includes(script.status);
+  const teacherReviewable = canReview && ['AwaitingModeration', 'NeedsAttention', 'ReturnedToTeacher'].includes(script.status);
+  const hodReviewable = canModerate && script.status === 'TeacherReviewed';
+  const reviewable = teacherReviewable || hodReviewable;
   const draftValues = script.result?.questions.map(q => ({ value: marks[q.number] ?? (q.marks === null ? '' : String(q.marks)), max: q.maxMarks })) || [];
   const completeDraft = draftValues.length > 0 && draftValues.every(q => q.value.trim() && Number.isFinite(Number(q.value)) && Number(q.value) >= 0 && Number(q.value) <= q.max);
-  async function action(kind: 'moderate' | 'approve') {
+  async function action(kind: 'review' | 'moderate' | 'return' | 'approve') {
     if (busy || stale || saved) return;
     setBusy(true); onBusyChange?.(true); setError('');
     try {
       const entered = Object.fromEntries((script.result?.questions || []).map(q => [q.number, marks[q.number] ?? (q.marks === null ? '' : String(q.marks))]));
-      if (kind === 'moderate' && (script.result?.questions || []).some(q => !entered[q.number].trim() || !Number.isFinite(Number(entered[q.number])) || Number(entered[q.number]) < 0 || Number(entered[q.number]) > q.maxMarks)) throw new Error('Confirm a valid mark within the memorandum limits for every question.');
-      await request(`/api/ai/batches/${script.batchId}/scripts/${script.id}/${kind}`, { method: 'POST', body: JSON.stringify({ revision: script.revision, reason, marks: kind === 'moderate' ? Object.fromEntries(Object.entries(entered).map(([key, value]) => [key, Number(value)])) : null }) });
+      if ((kind === 'review' || kind === 'moderate') && (script.result?.questions || []).some(q => !entered[q.number].trim() || !Number.isFinite(Number(entered[q.number])) || Number(entered[q.number]) < 0 || Number(entered[q.number]) > q.maxMarks)) throw new Error('Confirm or correct every AI-suggested mark against the memorandum.');
+      await request(`/api/ai/batches/${script.batchId}/scripts/${script.id}/${kind}`, { method: 'POST', body: JSON.stringify({ revision: script.revision, reason, marks: kind === 'review' || kind === 'moderate' ? Object.fromEntries(Object.entries(entered).map(([key, value]) => [key, Number(value)])) : null }) });
       setSaved(true); change();
       try { await onSaved(); } catch { setError('Your decision was saved, but the view could not refresh. Reopen this script to see its current status.'); }
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not save the review.'); } finally { setBusy(false); onBusyChange?.(false); }
@@ -58,7 +60,7 @@ export default function AiBatchReview({ script, canModerate, canApprove, onSaved
       </article>)}</div>
       <p><strong>{script.total === null ? 'Total withheld until flagged answers are resolved.' : `Total: ${script.total}`}</strong></p>
       {dirty && reviewable && <p className="draft-total"><strong>{completeDraft ? `Draft total: ${draftValues.reduce((sum, q) => sum + Number(q.value), 0)} / ${draftValues.reduce((sum, q) => sum + q.max, 0)}` : 'Draft total: confirm a valid mark for every question.'}</strong></p>}
-      {reviewable && <><label>Moderation reason<textarea value={reason} disabled={busy || stale || saved} onChange={e => edit({ reason: e.target.value })} maxLength={5000} required /></label><button disabled={busy || stale || saved || !reason.trim()} onClick={() => void action('moderate')}>Confirm moderation</button></>}
+      {reviewable && <><label>{teacherReviewable ? 'Teacher review notes / verified learner improvements' : 'HOD moderation reason'}<textarea value={reason} disabled={busy || stale || saved} onChange={e => edit({ reason: e.target.value })} maxLength={5000} required /></label><button disabled={busy || stale || saved || !reason.trim() || !completeDraft} onClick={() => void action(teacherReviewable ? 'review' : 'moderate')}>{teacherReviewable ? 'Confirm AI marks & send to HOD' : 'Approve HOD moderation'}</button>{hodReviewable && <button className="secondary" disabled={busy || stale || saved || !reason.trim()} onClick={() => void action('return')}>Return to teacher for correction</button>}</>}
       {canApprove && script.status === 'Moderated' && <button disabled={busy || saved || stale} onClick={() => void action('approve')}>Approve result</button>}
     </> : <p className="academic-empty">{script.status === 'Processing' || script.status === 'Queued' ? 'The local AI is processing this script.' : 'No AI marks yet. Start marking when your local model is ready.'}</p>}
     {error && <p role="alert" className="alert error">{error}</p>}
