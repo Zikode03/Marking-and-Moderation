@@ -3,12 +3,12 @@ import { request } from '../auth/session';
 import type { BatchSummary } from './AiBatchReview';
 import { assessmentContext, type Assessment } from './types';
 
-export type QueueKind = 'marking' | 'moderation' | 'approval' | 'completed';
+export type QueueKind = 'marking' | 'review' | 'moderation' | 'approval' | 'completed';
 export type ModelStatus = { ready: boolean; status: string; model: string | null; languages?: string[] };
 export type WorkRow = BatchSummary['scripts'][number] & { batchId: string; title: string; context: string; assessmentId: string; createdAt: string };
-export const queueLabels: Record<QueueKind, string> = { marking: 'AI marking', moderation: 'Moderation', approval: 'Approvals', completed: 'Completed' };
+export const queueLabels: Record<QueueKind, string> = { marking: 'AI marking', review: 'Teacher review', moderation: 'HOD moderation', approval: 'Approvals', completed: 'Completed' };
 export const queueStatuses: Record<QueueKind, string[]> = {
-  marking: ['Uploaded', 'Queued', 'Processing', 'Failed'], moderation: ['NeedsAttention', 'AwaitingModeration'], approval: ['Moderated'], completed: ['Approved'],
+  marking: ['Uploaded', 'Queued', 'Processing', 'Failed'], review: ['NeedsAttention', 'AwaitingModeration', 'ReturnedToTeacher'], moderation: ['TeacherReviewed'], approval: ['Moderated'], completed: ['Approved'],
 };
 export function workRows(batches: BatchSummary[], assessments: Assessment[]): WorkRow[] {
   const index = new Map(assessments.map(a => [a.id, a]));
