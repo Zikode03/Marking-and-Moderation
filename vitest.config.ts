@@ -1,0 +1,15 @@
+import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    restoreMocks: true,
+    clearMocks: true,
+    testTimeout: 15000,
+    fileParallelism: false,
+  },
+});

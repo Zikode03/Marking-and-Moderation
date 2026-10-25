@@ -2,3 +2,11 @@ node_modules/
 dist/
 .env
 .env.local
+.env.docker
+.local/
+*.tsbuildinfo
+coverage/
+__pycache__/
+*.pyc
+
+.pytest_cache/

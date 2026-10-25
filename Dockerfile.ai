@@ -1,0 +1,10 @@
+FROM python:3.12-slim
+WORKDIR /service
+COPY ai_training/requirements.txt ./ai_training/requirements.txt
+COPY ai_service/requirements.txt ./ai_service/requirements.txt
+RUN pip install --no-cache-dir "torch>=2.6,<3" --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir -r ai_service/requirements.txt
+COPY ai_training ./ai_training
+COPY ai_service ./ai_service
+EXPOSE 8000
+CMD ["python", "-m", "uvicorn", "ai_service.main:app", "--host", "0.0.0.0", "--port", "8000"]

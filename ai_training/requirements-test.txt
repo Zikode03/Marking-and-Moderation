@@ -1,0 +1,3 @@
+-r ../ai_service/requirements.txt
+httpx>=0.27,<1
+pytest>=8,<10
