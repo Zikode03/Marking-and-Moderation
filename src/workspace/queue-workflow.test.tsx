@@ -36,7 +36,7 @@ describe('Role dashboards and dedicated queues', () => {
   it('counts AI scripts for the selected school workspace rather than legacy submissions', async () => {
     workspace();
     expect(await screen.findByText('7 scripts across 1 batches')).toBeVisible();
-    const card=screen.getByRole('button',{name:/Awaiting moderation.*2/});
+    const card=screen.getByRole('button',{name:/Teacher review.*2/});
     await userEvent.click(card);
     const table=screen.getByRole('table');
     expect(within(table).getByText('C003')).toBeVisible(); expect(within(table).getByText('C004')).toBeVisible();
@@ -72,12 +72,12 @@ describe('Role dashboards and dedicated queues', () => {
     expect(screen.getByText('Page 2 of 3')).toBeVisible(); expect(screen.getByText('C15')).toBeVisible();
   });
   it('keeps question marks and reasons when moving between scripts and focuses review circles', async () => {
-    queue({queue:'moderation',canModerate:true});
+    queue({queue:'review',canReview:true,canUpload:true});
     await userEvent.click(screen.getByRole('button',{name:'Open script C003'}));
     const input=await screen.findByLabelText('Confirmed mark · Question 1');
     expect(await screen.findByLabelText('Approved memorandum viewer')).toBeVisible();
     await userEvent.clear(input); await userEvent.type(input,'8');
-    await userEvent.type(screen.getByLabelText('Moderation reason'),'Equivalent method deserves credit.');
+    await userEvent.type(screen.getByLabelText('Teacher review notes / verified learner improvements'),'Equivalent method deserves credit.');
     await userEvent.click(screen.getByRole('button',{name:'Show circle · page 2'}));
     expect(screen.getByLabelText('Candidate script viewer')).toHaveTextContent('Page 2');
     fireEvent.keyDown(window,{key:'j',altKey:true});
@@ -86,14 +86,14 @@ describe('Role dashboards and dedicated queues', () => {
     fireEvent.keyDown(window,{key:'k',altKey:true});
     await waitFor(()=>expect(screen.getByLabelText('Confirmed mark · Question 1')).toHaveValue(8));
     expect(screen.getByLabelText('Moderation reason')).toHaveValue('Equivalent method deserves credit.');
-    await userEvent.click(screen.getByRole('button',{name:'Confirm moderation'}));
-    await waitFor(()=>expect(api).toHaveBeenCalledWith('/api/ai/batches/batch/scripts/s3/moderate',expect.objectContaining({method:'POST'})));
-    const call=api.mock.calls.find(([path])=>path.endsWith('/moderate'))!;
+    await userEvent.click(screen.getByRole('button',{name:'Confirm AI marks & send to HOD'}));
+    await waitFor(()=>expect(api).toHaveBeenCalledWith('/api/ai/batches/batch/scripts/s3/review',expect.objectContaining({method:'POST'})));
+    const call=api.mock.calls.find(([path])=>path.endsWith('/review'))!;
     expect(JSON.parse(call[1].body)).toMatchObject({revision:1,marks:{'1':8},reason:'Equivalent method deserves credit.'});
   });
   it('blocks a stale draft until it is discarded', async () => {
     const discard=vi.fn();
-    render(<AiBatchReview script={{...script(),revision:2}} canModerate canApprove={false} draft={{revision:1,marks:{'1':'8'},reason:'Review'}} onDraftChange={discard} onSaved={async()=>{}}/>);
+    render(<AiBatchReview script={{...script(),revision:2}} canReview canModerate={false} canApprove={false} draft={{revision:1,marks:{'1':'8'},reason:'Review'}} onDraftChange={discard} onSaved={async()=>{}}/>);
     expect(screen.getByRole('button',{name:'Confirm moderation'})).toBeDisabled();
     expect(screen.getByText(/This script changed since/)).toBeVisible();
     await userEvent.click(screen.getByRole('button',{name:'Discard draft'})); expect(discard).toHaveBeenCalledWith(undefined);
