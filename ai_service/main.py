@@ -1,4 +1,5 @@
 """Local proprietary model host. No external APIs or pretrained weights are used."""
+from ai_training.feedback import script_feedback
 import importlib
 import json
 import os
@@ -154,6 +155,7 @@ def mark_files(paper: UploadFile = File(...), memo: UploadFile = File(...), scri
         with model_lock:
             raw = runner.mark_files(**files, request_id=request_id, script_language=script_language, memo_language=memo_language, academic_context=context, marking_policy=MARKING_POLICY)
         result = Result.model_validate(raw)
+        result.summary = script_feedback([q.model_dump() for q in result.questions])
         if any(q.detectedLanguage in LANGUAGES and q.detectedLanguage not in model_languages for q in result.questions):
             raise ValueError("Result language is outside the model's validated scope")
     except Exception as exc:

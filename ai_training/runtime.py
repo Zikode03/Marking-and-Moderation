@@ -6,6 +6,7 @@ from pathlib import Path
 
 import torch
 
+from .feedback import script_feedback
 from .documents import crop_region, render_pages
 from .networks import HandwritingReader, RubricScorer, decode_ctc, encode_example, line_tensor, pad_tokens
 from .templates import validate_template
@@ -123,7 +124,7 @@ class Runner:
                            'evidence': '\n'.join(text), 'memoEvidence': question['memoEvidence'],
                            'feedback': reason, 'needsReview': True, 'detectedLanguage': language,
                            'readingConfidence': confidence, 'annotations': annotations})
-        return {'needsAttention': True, 'summary': 'Provisional model output. Every question requires academic moderation. Language comes from the reviewed template; reading confidence is an uncalibrated model estimate.', 'questions': output}
+        return {'needsAttention': True, 'summary': script_feedback(output), 'questions': output}
 
 
 def load(directory):

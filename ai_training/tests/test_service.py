@@ -33,6 +33,8 @@ def test_local_model_contract_and_file_validation(monkeypatch):
     response=client.post('/mark-files', files=files, data={'request_id':'test'})
     assert response.status_code == 200
     assert response.json()['result']['questions'][0]['marks'] == 7
+    assert '7 out of 10' in response.json()['result']['summary']
+    assert 'Focus next on question(s) 1' in response.json()['result']['summary']
     files['script'] = ('script.pdf', b'not a pdf', 'application/pdf')
     assert client.post('/mark-files',files=files,data={'request_id':'test'}).status_code == 422
 

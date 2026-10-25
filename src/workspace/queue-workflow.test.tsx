@@ -43,6 +43,13 @@ describe('Role dashboards and dedicated queues', () => {
     expect(within(table).queryByText('C006')).not.toBeInTheDocument();
     expect(api.mock.calls.some(([path]) => path==='/api/submissions')).toBe(false);
   });
+  it('opens failed processing in the marking queue', async () => {
+    workspace();
+    const failed = await screen.findByRole('button', {name:/Failed processing/});
+    await waitFor(() => expect(failed).toBeEnabled());
+    await userEvent.click(failed);
+    expect(within(screen.getByRole('table')).getByText('C002')).toBeVisible();
+  });
   it('shows allocated faculty modules for lecturers', async () => {
     workspace('Lecturer', true);
     expect(await screen.findByText('Science · ICT101 · Computing')).toBeVisible();
@@ -51,7 +58,7 @@ describe('Role dashboards and dedicated queues', () => {
   it.each([['HOD','Moderation'],['Principal','Approvals']])('lands %s in their own queue', async (role,title) => {
     workspace(role);
     expect(await screen.findByRole('heading',{name:title,level:1})).toBeVisible();
-    expect(await screen.findByRole('heading',{name:`${title} queue`})).toBeVisible();
+    expect(await screen.findByRole('heading',{name:`${role === 'HOD' ? 'HOD moderation' : title} queue`})).toBeVisible();
   });
   it('searches and filters marking scripts without mixing approved work into the queue', async () => {
     queue();
@@ -76,6 +83,10 @@ describe('Role dashboards and dedicated queues', () => {
     await userEvent.click(screen.getByRole('button',{name:'Open script C003'}));
     const input=await screen.findByLabelText('Confirmed mark · Question 1');
     expect(await screen.findByLabelText('Approved memorandum viewer')).toBeVisible();
+    await userEvent.clear(screen.getByLabelText('Learner feedback � Question 1'));
+    await userEvent.type(screen.getByLabelText('Learner feedback � Question 1'),'Show each calculation.');
+    await userEvent.clear(screen.getByLabelText('Reviewed overall learner feedback'));
+    await userEvent.type(screen.getByLabelText('Reviewed overall learner feedback'),'Good method; show each calculation.');
     await userEvent.clear(input); await userEvent.type(input,'8');
     await userEvent.type(screen.getByLabelText('Teacher review notes / verified learner improvements'),'Equivalent method deserves credit.');
     await userEvent.click(screen.getByRole('button',{name:'Show circle · page 2'}));
@@ -85,16 +96,16 @@ describe('Role dashboards and dedicated queues', () => {
     expect(screen.getByLabelText('Confirmed mark · Question 1')).toHaveValue(6);
     fireEvent.keyDown(window,{key:'k',altKey:true});
     await waitFor(()=>expect(screen.getByLabelText('Confirmed mark · Question 1')).toHaveValue(8));
-    expect(screen.getByLabelText('Moderation reason')).toHaveValue('Equivalent method deserves credit.');
+    expect(screen.getByLabelText('Teacher review notes / verified learner improvements')).toHaveValue('Equivalent method deserves credit.');
     await userEvent.click(screen.getByRole('button',{name:'Confirm AI marks & send to HOD'}));
     await waitFor(()=>expect(api).toHaveBeenCalledWith('/api/ai/batches/batch/scripts/s3/review',expect.objectContaining({method:'POST'})));
     const call=api.mock.calls.find(([path])=>path.endsWith('/review'))!;
-    expect(JSON.parse(call[1].body)).toMatchObject({revision:1,marks:{'1':8},reason:'Equivalent method deserves credit.'});
+    expect(JSON.parse(call[1].body)).toMatchObject({revision:1,marks:{'1':8},reason:'Equivalent method deserves credit.',feedback:{'1':'Show each calculation.'},summary:'Good method; show each calculation.'});
   });
   it('blocks a stale draft until it is discarded', async () => {
     const discard=vi.fn();
     render(<AiBatchReview script={{...script(),revision:2}} canReview canModerate={false} canApprove={false} draft={{revision:1,marks:{'1':'8'},reason:'Review'}} onDraftChange={discard} onSaved={async()=>{}}/>);
-    expect(screen.getByRole('button',{name:'Confirm moderation'})).toBeDisabled();
+    expect(screen.getByRole('button',{name:'Confirm AI marks & send to HOD'})).toBeDisabled();
     expect(screen.getByText(/This script changed since/)).toBeVisible();
     await userEvent.click(screen.getByRole('button',{name:'Discard draft'})); expect(discard).toHaveBeenCalledWith(undefined);
   });
