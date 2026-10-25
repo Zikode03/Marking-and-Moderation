@@ -10,9 +10,9 @@ export default function MarkingDashboard({ school, academics, rows, model, loadi
   const count = (statuses: string[]) => rows.filter(row => statuses.includes(row.status)).length;
   const responsibilities = school ? [...new Set(academics.allocations.filter(a => a.grade !== null).map(a => `Grade ${a.grade} · ${a.subject}`))] : academics.modules.map(m => `${academics.faculties.find(f => f.id === m.facultyId)?.name || 'Faculty'} · ${m.code} · ${m.name}`);
   const cards: { label: string; value: number; queue: QueueKind; hint: string }[] = [
-    { label: 'Waiting to mark', value: count(['Uploaded']), queue: 'marking', hint: 'Files saved and ready to queue' },
+    { label: 'Waiting to mark', value: count(['Uploaded']), queue: 'marking', hint: 'Scripts uploaded for AI processing' },
     { label: 'Processing', value: count(['Queued', 'Processing']), queue: 'marking', hint: 'Queued or being marked by AI' },
-    { label: 'Needs attention', value: count(['NeedsAttention', 'Failed']), queue: canModerate ? 'moderation' : 'marking', hint: `${count(['Failed'])} failed · ${count(['NeedsAttention'])} flagged for review` },
+    { label: 'Needs attention', value: count(['NeedsAttention', 'Failed']), queue: 'review', hint: `${count(['Failed'])} failed · ${count(['NeedsAttention'])} flagged for review` },
     { label: 'Awaiting moderation', value: count(queueStatuses.moderation), queue: 'moderation', hint: 'Includes flagged answers' },
     { label: 'Awaiting approval', value: count(['Moderated']), queue: 'approval', hint: 'Human moderation completed' },
     { label: 'Completed', value: count(['Approved']), queue: 'completed', hint: 'Approved results available' },
