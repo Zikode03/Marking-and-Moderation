@@ -30,6 +30,8 @@ def prepare_ocr(paths, output, seed=42):
             if not line.strip():
                 continue
             row = json.loads(line)
+            if row.get('sourceMarked') and row.get('learnerWritingOnly') is not True:
+                raise ValueError('Marked-script crops must exclude teacher annotations')
             for field in ('assessmentGroup', 'scriptGroup', 'document', 'text', 'language', 'labelledBy', 'verifiedBy'):
                 if not isinstance(row.get(field), str) or not row[field].strip():
                     raise ValueError(f'{source.name}:{index}: missing {field}')

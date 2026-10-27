@@ -1,10 +1,10 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, BookOpenCheck, Building2, Check, CheckCircle2, Eye, EyeOff,
   GraduationCap, LifeBuoy, LoaderCircle, LockKeyhole, Mail, ShieldCheck } from 'lucide-react';
 import { useAuth } from './AuthProvider';
 import { loginError, type OrganisationType, type Sector, type OrganisationSelection } from './session';
 import './signin.css';
-import MarkedPaperPreview from './MarkedPaperPreview';
+import LandingPage from './LandingPage';
 
 const organisations = [
   { id: 'institution' as const, title: 'Institution', description: 'Universities, colleges and training providers.', icon: Building2 },
@@ -13,6 +13,13 @@ const organisations = [
 
 export default function SignIn() {
   const { login, message, restoring } = useAuth();
+  const [portalOpen, setPortalOpen] = useState(false);
+  const portalDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dialog = portalDialog.current;
+    if ((portalOpen || restoring) && dialog && !dialog.open) dialog.showModal();
+    else if (!portalOpen && !restoring && dialog?.open) dialog.close();
+  }, [portalOpen, restoring]);
   const [organisationType, setOrganisationType] = useState<OrganisationType | null>(null);
   const [sector, setSector] = useState<Sector | null>(null);
   const [pathway, setPathway] = useState<'caps' | 'ieb' | null>(null);
@@ -60,7 +67,9 @@ export default function SignIn() {
     } finally { submitting.current = false; setBusy(false); }
   }
 
-  return <div className="signin-shell" data-step={stage}>
+  return <LandingPage onStart={() => setPortalOpen(true)}><dialog ref={portalDialog} className="landing-auth-dialog" aria-label="Staff sign in" onCancel={event => { if (busy || restoring) { event.preventDefault(); return; } setPortalOpen(false); setPassword(''); }}>
+    <button className="landing-auth-close" aria-label="Close sign in" disabled={busy || restoring} onClick={() => { setPortalOpen(false); setPassword(''); }}>×</button>
+    <div className="signin-shell" data-step={stage}>
     <aside className="signin-story" aria-label="About Prospera Assess">
       <a className="signin-brand" href="/" aria-label="Prospera Assess home">
         <span className="signin-mark"><GraduationCap size={27} /></span>
@@ -69,8 +78,8 @@ export default function SignIn() {
       <div className="signin-story-content">
         <span className="signin-kicker"><span /> THE THINKING BEHIND EVERY MARK</span>
         <h1>Every answer.<br /><em>A clearer picture.</em></h1>
-        <p>A glimpse of AI-assisted feedback, with teacher judgement at the centre.</p>
-        <MarkedPaperPreview />
+        <p>A clearer assessment process, with academic judgement at the centre.</p>
+        <div className="signin-story-photo" role="img" aria-label="Educator working in a library" />
       </div>
       <div className="signin-story-footer"><ShieldCheck size={17} /><span>Your organisation. Your team. Clear accountability.</span></div>
     </aside>
@@ -114,5 +123,5 @@ export default function SignIn() {
       </div>
       <footer className="signin-footer"><span>Â© {new Date().getFullYear()} Prospera Core</span><span>Built for better assessment.</span></footer>
     </main>
-  </div>;
+  </div></dialog></LandingPage>;
 }

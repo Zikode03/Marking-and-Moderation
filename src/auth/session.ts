@@ -4,7 +4,7 @@ export type Sector = 'public' | 'private';
 export type OrganisationSelection =
   | { organisationType: 'institution'; sector: Sector }
   | { organisationType: 'school'; sector: Sector; pathway: 'caps' | 'ieb' };
-export type Profile = { email: string; schoolId: string; roles: string[] };
+export type Profile = { email: string; schoolId: string; roles: string[]; organisationType?: OrganisationType | null; sector?: Sector | null };
 export type Session = { profile: Profile; portal: Portal; selection: OrganisationSelection };
 type Tokens = { accessToken: string; refreshToken: string };
 type SavedSession = { version: 3; refreshToken: string; selection: OrganisationSelection };
@@ -87,13 +87,15 @@ export function clearSession() {
 }
 
 function accountPortal(profile: Profile): Portal {
-  if (profile.roles.some(role => ['SchoolAdmin', 'HOD', 'Principal', 'AcademicAdmin'].includes(role))) return 'school';
+  if (profile.roles.some(role => ['SchoolAdmin', 'HOD', 'Moderator', 'Principal', 'AcademicAdmin'].includes(role))) return 'school';
   if (profile.roles.some(role => ['Teacher', 'Lecturer', 'Professor'].includes(role))) return 'teacher';
   throw new ApiError(403, 'Your account has no assigned staff role. Please contact your administrator.');
 }
 
 function validateAcademicRole(profile: Profile, selection: OrganisationSelection) {
-  const leadership = profile.roles.some(role => ['SchoolAdmin', 'AcademicAdmin', 'HOD', 'Principal'].includes(role));
+  if (profile.organisationType && profile.organisationType !== selection.organisationType) throw new ApiError(403, 'Choose the organisation type registered for your account.');
+  if (profile.sector && profile.sector !== selection.sector) throw new ApiError(403, 'Choose the public or private sector registered for your account.');
+  const leadership = profile.roles.some(role => ['SchoolAdmin', 'AcademicAdmin', 'HOD', 'Moderator', 'Principal'].includes(role));
   if (leadership) return;
   if (selection.organisationType === 'school' && !profile.roles.includes('Teacher'))
     throw new ApiError(403, 'Use a teacher account for the school workspace. Lecturer and professor accounts use Institution.');

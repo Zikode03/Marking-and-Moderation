@@ -1,0 +1,19 @@
+PROSPERA ASSESS — STAFF QUICK START
+
+1. SIGN IN
+Select school or institution, public or private, and your academic pathway. Use the staff account issued by your organisation. Ask its administrator if you need access.
+
+2. FIND YOUR WORK
+School staff work with assigned Grades 8–12 subjects. Institution staff work with assigned faculties and modules.
+
+3. UPLOAD EXISTING ASSESSMENTS
+Choose the academic allocation and upload the existing question paper, approved memorandum and candidate scripts. This system does not create assessments.
+
+4. MARK AND REVIEW
+AI marks require a connected, trained and validated local model. Check model status in the workspace. Review scripts against the memo, inspect flags and record reasons for changes. Flags invite academic review; they do not prove an error.
+
+5. MODERATE AND APPROVE
+Use your assigned role to moderate and approve results. Keep final academic decisions with authorised staff.
+
+6. TRAIN RESPONSIBLY
+Only verified examples should enter the training dataset. Evaluate handwriting, language and marking performance before using a model for live work.

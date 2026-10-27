@@ -1,0 +1,9 @@
+# Assessment hero artwork
+
+Generated with the built-in image generation tool. Saved project asset: `public/images/assessment-marking-hero.webp`.
+
+This illustration represents the marking and moderation workflow. The tablet is illustrative artwork, not a live application screenshot.
+
+Final generation prompt:
+
+Use case: ads-marketing. Asset: wide photographic website hero background for Prospera Assess, a South African script marking and moderation platform. Generate a polished realistic editorial still life, landscape 16:9. No people, no laptop lifestyle scene. On the right 58% of the image, a neat academic marking desk photographed at an elevated three-quarter angle: a stack of handwritten mathematics and written-response exam scripts, a separate approved memorandum beside them, one restrained green circled answer region and small amber review flags on a paper, a dark green pen, and a slim tablet showing a clean abstract script-review interface with a document pane and restrained green/amber annotation markers. Communicate comparing student work to the memo and human moderation, not automatic perfect grading. Papers have plausible faint handwriting and maths; avoid legible names, marks, slogans, logos, invented text, and large screen UI text. Ivory paper, soft sage and forest-green palette, warm natural light, premium calm professional academic setting, authentic paper texture, no clutter, no robots, no glowing AI icons, no floating UI overlays. Composition: left 42% is softly lit pale neutral desk negative space for the existing website headline and buttons. The documents and tablet are fully inside the right area with generous margins at top and bottom so a wide hero crop preserves all key items. This is background art, not a screenshot of a website. No marketing words or typography baked into image.

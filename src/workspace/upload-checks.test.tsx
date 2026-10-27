@@ -5,7 +5,7 @@ import UploadWizard from './UploadWizard';
 import type { Academics } from './types';
 const { inspect, upload }=vi.hoisted(()=>({inspect:vi.fn(),upload:vi.fn()}));
 vi.mock('./inspectUpload',()=>({inspectUpload:inspect}));
-vi.mock('../auth/session',()=>({uploadWithProgress:upload}));
+vi.mock('../auth/session',()=>({uploadWithProgress:upload,request:vi.fn(async()=>[])}));
 const academics: Academics={grades:[10],faculties:[],modules:[],staff:[],allocations:[{id:'a',userId:'u',grade:10,subject:'Mathematics',moduleId:null}]};
 const file=(name:string)=>new File(['%PDF-1.4 '+name],name,{type:'application/pdf'});
 beforeEach(()=>{inspect.mockReset();upload.mockReset();inspect.mockImplementation(async(f:File)=>({pages:2,hash:f.name}));});

@@ -14,7 +14,7 @@ export async function downloadBatchFile(batch: string, file: string, filename: s
   const url = URL.createObjectURL(blob); const link = document.createElement('a'); link.href = url; link.download = filename; link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
-export type ReviewDraft = { revision: number; marks: Record<string, string>; reason: string; feedback?: Record<string, string>; summary?: string };
+export type ReviewDraft = { revision: number; marks: Record<string, string>; reason: string; feedback?: Record<string, string>; summary?: string; evidence?: Record<string,string> };
 export default function AiBatchReview({ script, canReview = false, canModerate, canApprove, onSaved, draft, onDraftChange, embedded = false, onFocusPage, onBusyChange }: { script: MarkedScript; canReview?: boolean; canModerate: boolean; canApprove: boolean; onSaved: () => Promise<void>; draft?: ReviewDraft; onDraftChange?: (draft?: ReviewDraft) => void; embedded?: boolean; onFocusPage?: (page: number) => void; onBusyChange?: (busy: boolean) => void }) {
   const [localDraft, setLocalDraft] = useState<ReviewDraft | undefined>();
   const currentDraft = onDraftChange ? draft : localDraft;
@@ -22,7 +22,7 @@ export default function AiBatchReview({ script, canReview = false, canModerate, 
   const marks = currentDraft?.marks || {}; const reason = currentDraft?.reason || '';
   const dirty = !!currentDraft; const stale = dirty && currentDraft.revision !== script.revision;
   function change(next?: ReviewDraft) { if (onDraftChange) onDraftChange(next); else setLocalDraft(next); }
-  function edit(patch: Partial<ReviewDraft>) { change({ revision: currentDraft?.revision ?? script.revision, marks, reason, feedback, summary: currentDraft?.summary, ...patch }); }
+  function edit(patch: Partial<ReviewDraft>) { change({ revision: currentDraft?.revision ?? script.revision, marks, reason, feedback, summary: currentDraft?.summary, evidence: currentDraft?.evidence, ...patch }); }
   const [busy, setBusy] = useState(false); const [error, setError] = useState(''); const [saved, setSaved] = useState(false);
   const [preview, setPreview] = useState(false); const [focusPage, setFocusPage] = useState(1);
   const [focusRequest, setFocusRequest] = useState(0);
@@ -38,7 +38,7 @@ export default function AiBatchReview({ script, canReview = false, canModerate, 
     try {
       const entered = Object.fromEntries((script.result?.questions || []).map(q => [q.number, marks[q.number] ?? (q.marks === null ? '' : String(q.marks))]));
       if ((kind === 'review' || kind === 'moderate') && (script.result?.questions || []).some(q => !entered[q.number].trim() || !Number.isFinite(Number(entered[q.number])) || Number(entered[q.number]) < 0 || Number(entered[q.number]) > q.maxMarks)) throw new Error('Confirm or correct every AI-suggested mark against the memorandum.');
-      await request(`/api/ai/batches/${script.batchId}/scripts/${script.id}/${kind}`, { method: 'POST', body: JSON.stringify({ revision: script.revision, reason, summary: kind === 'review' ? currentDraft?.summary ?? script.result?.summary : null, feedback: kind === 'review' ? Object.fromEntries((script.result?.questions || []).map(q => [q.number, feedback[q.number] ?? q.feedback])) : null, marks: kind === 'review' || kind === 'moderate' ? Object.fromEntries(Object.entries(entered).map(([key, value]) => [key, Number(value)])) : null }) });
+      await request(`/api/ai/batches/${script.batchId}/scripts/${script.id}/${kind}`, { method: 'POST', body: JSON.stringify({ revision: script.revision, reason, evidence: kind === 'review' ? Object.fromEntries((script.result?.questions || []).map(q=>[q.number,currentDraft?.evidence?.[q.number] ?? q.evidence])) : null, summary: kind === 'review' ? currentDraft?.summary ?? script.result?.summary : null, feedback: kind === 'review' ? Object.fromEntries((script.result?.questions || []).map(q => [q.number, feedback[q.number] ?? q.feedback])) : null, marks: kind === 'review' || kind === 'moderate' ? Object.fromEntries(Object.entries(entered).map(([key, value]) => [key, Number(value)])) : null }) });
       setSaved(true); change();
       try { await onSaved(); } catch { setError('Your decision was saved, but the view could not refresh. Reopen this script to see its current status.'); }
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not save the review.'); } finally { setBusy(false); onBusyChange?.(false); }
@@ -53,7 +53,7 @@ export default function AiBatchReview({ script, canReview = false, canModerate, 
     {script.result ? <><h3>Overall learner feedback</h3><p>{script.result.summary}</p>{teacherReviewable && <label>Reviewed overall learner feedback<textarea maxLength={10000} value={currentDraft?.summary ?? script.result.summary} disabled={busy || stale || saved} onChange={e => edit({ summary: e.target.value })}/></label>}<p className="muted">Local model: {script.model}. Marks remain provisional until moderation and approval.</p>
       <div className="ai-questions">{script.result.questions.map(q => <article key={q.number} className={q.needsReview ? 'ai-question flagged' : 'ai-question'}><div className="headrow"><h3>Question {q.number}</h3><strong>{q.marks ?? 'Review needed'} / {q.maxMarks}</strong></div>
         <p><strong>Answer evidence:</strong> {q.evidence || 'No readable evidence returned.'}</p><p>{q.feedback}</p>
-        {teacherReviewable && <label>Learner feedback � Question {q.number}<textarea value={feedback[q.number] ?? q.feedback} maxLength={5000} disabled={busy || stale || saved} onChange={e => edit({ feedback: { ...feedback, [q.number]: e.target.value } })}/></label>}
+        {teacherReviewable && <label>Learner feedback · Question {q.number}<textarea value={feedback[q.number] ?? q.feedback} maxLength={5000} disabled={busy || stale || saved} onChange={e => edit({ feedback: { ...feedback, [q.number]: e.target.value } })}/></label>}
         {q.memoEvidence && <p><strong>Memorandum evidence:</strong> {q.memoEvidence}</p>}
         {q.detectedLanguage && <p className="muted">{languageLabel(q.detectedLanguage)} · Reading confidence (model estimate): {q.readingConfidence === undefined ? 'Not reported' : `${Math.round(q.readingConfidence * 100)}%`}</p>}
         {q.annotations?.map((annotation, index) => <div key={index} className="script-review-note"><strong>{annotationLabels[annotation.kind] || 'Review required'}</strong><p>{annotation.note}</p><button className="secondary" onClick={() => {setFocusPage(annotation.page); setFocusRequest(value => value + 1); if (embedded) onFocusPage?.(annotation.page); else setPreview(true);}}>Show circle · page {annotation.page}</button></div>)}

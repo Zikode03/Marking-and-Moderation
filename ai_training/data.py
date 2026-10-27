@@ -25,10 +25,24 @@ def read_rows(path):
                 raise ValueError(f'{path}:{number}: invalid {key}')
         if 'needsReview' in row and type(row['needsReview']) is not bool:
             raise ValueError(f'{path}:{number}: needsReview must be a boolean')
+        preparation = row.get('preparation') or {}
+        if not isinstance(preparation, dict):
+            raise ValueError(f'{path}:{number}: invalid preparation metadata')
+        if preparation.get('sourceMarked') and (preparation.get('learnerWritingOnly') is not True or not preparation.get('datasetScope') or not preparation.get('preparationNotes')):
+            raise ValueError(f'{path}:{number}: marked scripts need verified annotation handling and academic scope')
         rows.append(row)
     if not rows:
         raise ValueError(f'{path}: no examples')
     return rows
+
+
+def academic_scope(row):
+    school, institution = row.get('school'), row.get('institution')
+    if isinstance(school, dict):
+        return json.dumps(['school', school.get('grade'), school.get('subject'), school.get('pathway'), row.get('scriptLanguage'), row.get('memoLanguage')], sort_keys=True)
+    if isinstance(institution, dict):
+        return json.dumps(['institution', institution.get('moduleId'), (row.get('preparation') or {}).get('datasetScope'), row.get('scriptLanguage'), row.get('memoLanguage')], sort_keys=True)
+    return None
 
 
 def content_key(row):
@@ -37,6 +51,8 @@ def content_key(row):
 
 def prepare(paths, output, seed=42):
     parents, records, labels = {}, {}, {}
+    scopes = set()
+    contexts = set()
 
     def find(key):
         parents.setdefault(key, key)
@@ -51,16 +67,28 @@ def prepare(paths, output, seed=42):
 
     for path in paths:
         for row in read_rows(path):
+            context = academic_scope(row)
+            if context:
+                contexts.add(context)
+            if len(contexts) > 1:
+                raise ValueError('Prepare separate datasets for different grades, subjects, modules or languages')
+            preparation = row.get('preparation') or {}
+            if preparation.get('datasetScope'):
+                scopes.add(preparation['datasetScope'].strip().casefold())
+            if len(scopes) > 1:
+                raise ValueError('Prepare separate datasets for different academic scopes')
             identity = (row['scriptGroup'], row['questionNumber'])
             signature = content_key(row)
             label = (row['marks'], row.get('needsReview', False))
             if signature in labels and labels[signature] != label:
                 raise ValueError('Conflicting labels for identical content')
             labels[signature] = label
-            if identity in records and any(records[identity].get(k) != row.get(k) for k in ('question', 'answer', 'rubric', 'maxMarks', 'marks', 'assessmentGroup', 'scriptLanguage', 'memoLanguage')):
+            if identity in records and any(records[identity].get(k) != row.get(k) for k in ('question', 'answer', 'rubric', 'maxMarks', 'marks', 'assessmentGroup', 'scriptLanguage', 'memoLanguage', 'preparation')):
                 raise ValueError('Conflicting labels or metadata for script/question')
             records[identity] = row
             keys = ['a:' + row['assessmentGroup'], 's:' + row['scriptGroup'], 'c:' + signature]
+            if preparation.get('learnerGroup'):
+                keys.append('l:' + preparation['learnerGroup'])
             for key in keys[1:]:
                 parents[find(key)] = find(keys[0])
     groups = {}
@@ -80,15 +108,21 @@ def prepare(paths, output, seed=42):
         unique = {content_key(r): r for r in rows}
         (output / f'{name}.jsonl').write_text(''.join(json.dumps(r, ensure_ascii=False) + '\n' for r in unique.values()), encoding='utf-8')
         counts[name] = len(unique)
-    (output / 'split-manifest.json').write_text(json.dumps({'seed': seed, 'groups': len(groups), 'examples': counts}, indent=2), encoding='utf-8')
+    (output / 'split-manifest.json').write_text(json.dumps({'seed': seed, 'groups': len(groups), 'examples': counts, 'academicScopes': sorted(scopes)}, indent=2), encoding='utf-8')
     return counts
 
 
 def load_splits(directory):
     splits = {name: read_rows(Path(directory) / f'{name}.jsonl') for name in ('train', 'validation', 'test')}
+    contexts = {academic_scope(r) for rows in splits.values() for r in rows if academic_scope(r)}
+    if len(contexts) > 1:
+        raise ValueError('Separate academic scopes must not share a training run')
+    scopes = {(r.get('preparation') or {}).get('datasetScope', '').strip().casefold() for rows in splits.values() for r in rows if (r.get('preparation') or {}).get('datasetScope')}
+    if len(scopes) > 1:
+        raise ValueError('Separate academic scopes must not share a training run')
     seen = set()
     for rows in splits.values():
-        keys = {prefix + str(value) for r in rows for prefix, value in (('a:', r['assessmentGroup']), ('s:', r['scriptGroup']), ('c:', content_key(r)))}
+        keys = {prefix + str(value) for r in rows for prefix, value in (('a:', r['assessmentGroup']), ('s:', r['scriptGroup']), ('c:', content_key(r)), ('l:', (r.get('preparation') or {}).get('learnerGroup'))) if value is not None}
         if seen & keys:
             raise ValueError('Data leakage between splits: repeated assessment, script or content')
         seen.update(keys)

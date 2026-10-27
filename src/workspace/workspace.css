@@ -26,7 +26,7 @@
 .dashboard-summary { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; color: #60766d; margin: 0 0 20px; font-size: 13px; }
 .dashboard-summary span { display: flex; align-items: center; gap: 8px; }
 .dashboard-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.marking-dashboard .stats button.metric-card { display: block; position: relative; text-align: left; background: #fff !important; color: #244739 !important; border: 1px solid #e1e9e5; border-radius: 15px; padding: 23px; }
+.marking-dashboard:not(.educator-overview) .stats button.metric-card { display: block; position: relative; text-align: left; background: #fff !important; color: #244739 !important; border: 1px solid #e1e9e5; border-radius: 15px; padding: 23px; }
 .metric-card:hover { border-color: #559b83 !important; box-shadow: 0 8px 22px #223e3210; }
 .metric-card > svg { position: absolute; top: 24px; right: 20px; color: #8ca99b; }
 .metric-card span, .metric-card small { display: block; padding-right: 22px; }
@@ -34,7 +34,7 @@
 .dashboard-columns h2 { display: flex; align-items: center; gap: 8px; }
 .responsibility-list { list-style: none; margin: 18px 0 0; padding: 0; }
 .responsibility-list li { padding: 12px; margin: 8px 0; border-radius: 8px; background: #f1f6f3; color: #3b6252; font-size: 13px; line-height: 1.6; }
-.marking-dashboard .panel button.dashboard-task { display: flex; justify-content: space-between; width: 100%; text-align: left; padding: 17px 0; background: transparent !important; color: #345a49 !important; border-radius: 0; border-bottom: 1px solid #e6eeea; }
+.marking-dashboard:not(.educator-overview) .panel button.dashboard-task { display: flex; justify-content: space-between; width: 100%; text-align: left; padding: 17px 0; background: transparent !important; color: #345a49 !important; border-radius: 0; border-bottom: 1px solid #e6eeea; }
 .dashboard-task small { display: block; margin-top: 7px; font-weight: 400; color: #72857a; line-height: 1.6; }
 .model-banner { display: flex; gap: 10px; flex-wrap: wrap; line-height: 1.7; }
 .model-banner strong { flex-shrink: 0; }
@@ -117,12 +117,12 @@
 
 .scan-splitter { padding: 16px; margin: 18px 0; border: 1px solid #dce7df; border-radius: 10px; background: #f6faf7; } .scan-splitter > summary { cursor: pointer; font-size: 13px; font-weight: 700; color: #3c6b52; } .scan-splitter textarea { font-family: ui-monospace, monospace; }
 
-.marking-dashboard .dashboard-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.marking-dashboard .stats button.metric-card { display: block !important; text-align: left !important; padding: 23px !important; }
-.marking-dashboard .metric-card small { color: #64776c; font-weight: 400; line-height: 1.6; }
-.marking-dashboard .panel button.dashboard-task { display: flex !important; justify-content: space-between !important; text-align: left !important; }
-@media (max-width:1050px) { .marking-dashboard .dashboard-stats { grid-template-columns: repeat(2, minmax(0,1fr)); } }
-@media (max-width:430px) { .marking-dashboard .dashboard-stats { grid-template-columns: 1fr; } }
+.marking-dashboard:not(.educator-overview) .dashboard-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.marking-dashboard:not(.educator-overview) .stats button.metric-card { display: block !important; text-align: left !important; padding: 23px !important; }
+.marking-dashboard:not(.educator-overview) .metric-card small { color: #64776c; font-weight: 400; line-height: 1.6; }
+.marking-dashboard:not(.educator-overview) .panel button.dashboard-task { display: flex !important; justify-content: space-between !important; text-align: left !important; }
+@media (max-width:1050px) { .marking-dashboard:not(.educator-overview) .dashboard-stats { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+@media (max-width:430px) { .marking-dashboard:not(.educator-overview) .dashboard-stats { grid-template-columns: 1fr; } }
 
 /* AI service visibility and expert training-data collection */
 .ai-training-workspace { display: grid; gap: 24px; }

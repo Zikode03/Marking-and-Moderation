@@ -1,10 +1,10 @@
 import { StrictMode } from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { AuthProvider } from './AuthProvider';
-import { clearSession, request } from './session';
+import { clearSession, request, signIn } from './session';
 
 const fetchMock = vi.fn<typeof fetch>();
 const teacher = { email: 'teacher@example.test', roles: ['Teacher'], schoolId: 'school-a' };
@@ -35,7 +35,9 @@ function backend(profile = teacher) {
   });
 }
 function show() {
-  return render(<StrictMode><AuthProvider><App /></AuthProvider></StrictMode>);
+  const view = render(<StrictMode><AuthProvider><App /></AuthProvider></StrictMode>);
+  fireEvent.click(screen.getAllByRole('button', {name:'Get started'})[0]);
+  return view;
 }
 async function chooseSchool() {
   await userEvent.click(await screen.findByRole('button', { name: /School Grades 8–12/ }));
@@ -58,6 +60,17 @@ beforeEach(() => {
 afterEach(() => { clearSession(); vi.unstubAllGlobals(); });
 
 describe('Organisation sign-in and account roles', () => {
+  it('allows dedicated moderators to sign in to the review workspace', async () => {
+    backend({email:'moderator@example.test',roles:['Moderator'],schoolId:'school-a'});
+    const session=await signIn('moderator@example.test','Example!Password9',{organisationType:'school',sector:'public',pathway:'caps'});
+    expect(session.portal).toBe('school');
+    expect(session.profile.roles).toContain('Moderator');
+  });
+  it('rejects a workspace choice that conflicts with the registered institution', async () => {
+    fetchMock.mockImplementation(async input=>String(input).endsWith('/login')?json(tokens):json({...admin,organisationType:'institution',sector:'private'}));
+    await expect(signIn(admin.email,'Example!Password9',{organisationType:'school',sector:'public',pathway:'caps'})).rejects.toThrow('organisation type registered');
+  });
+
   it('starts with two clear workspace choices and no credential fields', async () => {
     show();
     expect(await screen.findByRole('heading', { name: 'Welcome to Prospera.' })).toBeVisible();
@@ -250,7 +263,7 @@ describe('Organisation sign-in and account roles', () => {
     await chooseSchool();
     await enterCredentials();
     await userEvent.click(await screen.findByRole('button', { name: 'Sign out' }));
-    expect(await screen.findByRole('heading', { name: 'Welcome to Prospera.' })).toBeVisible();
+    expect(await screen.findByRole('heading', { name: /Turn assessment/ })).toBeVisible();
     expect(sessionStorage.getItem('prospera.session.v3')).toBeNull();
     expect(screen.queryByText(teacher.email)).not.toBeInTheDocument();
   });

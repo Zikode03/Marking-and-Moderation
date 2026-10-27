@@ -26,9 +26,9 @@ First choose **Institution** (university, college or training provider) or **Sch
 
 Sign-in supports password visibility, clear error messages and account-help guidance. Refreshing the page restores the current browser-tab session. Signing out clears that session. Passwords and access tokens are not saved to browser storage; a refresh token is held in session storage for this tab.
 
-The sign-in page includes an interactive marked-paper/rubric concept preview using fictional learner work. Its suggested score and feedback are illustrative; the AI marking model is not live. This preview never calls the AI marking endpoint or assigns actual academic marks.
+The public landing page uses a photographic education layout with feature summaries and school, college and university entry cards. Get started opens the existing staff sign-in steps in a modal. The marked-script preview and lower get-started panel have been removed.
 
-The landing layout fits the viewport. Its decorative paper scales to the available height; compact screens prioritize the sign-in form, and help opens as a popover instead of adding page height.
+The landing layout fits one viewport across phone, tablet and desktop sizes. How it works plays a real, silent 30-second captioned app walkthrough with playback controls. Sign-in remains a separate modal with the existing organisation, sector and school-pathway choices. See [LANDING_DESIGN.md](docs/LANDING_DESIGN.md) for asset sources and implementation notes.
 
 Use Node.js 22.13+ or a supported newer version. Run `npm test` for sign-in, role-navigation, session-renewal and sign-out regression checks, and `npm run build` for the production build.
 
@@ -44,3 +44,7 @@ Open **AI & Training → Open Model Studio**, or visit `/training`, to see the c
 - **Institution:** faculties, modules, lecturer/professor allocations, academic-year/semester assessments and student marking.
 
 Administrators manage responsibilities under **Teaching staff** or **Academic staff**. New teaching accounts require an initial allocation. See [ACADEMIC_STRUCTURE.md](docs/ACADEMIC_STRUCTURE.md) for setup, access rules and the additive database upgrade.
+
+## Institution and operational modules
+
+See [the module implementation guide](docs/PRODUCT_MODULES.md) for institution setup, enrolments, invitations, assessment versions, moderation assignments, reporting, CSV exchange and marked-script preparation. The frontend and backend include matching API changes; apply the backend `InstitutionModules` migration before deploying this version.

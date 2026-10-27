@@ -1,5 +1,5 @@
 export type Criterion = { id: string; name: string; maxMarks: number };
-export type SchoolContext = { subject: string; grade: number; term: number; assessmentType: string; schoolType: string; pathway: string; weightPercent: number };
+export type SchoolContext = { academicYear?: number | null; subject: string; grade: number; term: number; assessmentType: string; schoolType: string; pathway: string; weightPercent: number };
 export type InstitutionContext = { facultyId: string; facultyName: string; moduleId: string; moduleCode: string; moduleName: string; academicYear: number; semester: number; assessmentType: string; weightPercent: number };
 export type Assessment = { id: string; title: string; code: string; totalMarks: number; criteria: Criterion[]; school: SchoolContext | null; institution: InstitutionContext | null };
 export type Submission = { id: string; assessmentId: string; studentReference: string; answerText: string; status: string; marks: Record<string, number>; feedback: string | null; total: number; revision: number; audit: { at: string; actor: string; action: string; notes: string }[] };

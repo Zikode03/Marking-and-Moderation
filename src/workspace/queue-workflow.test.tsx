@@ -35,7 +35,7 @@ function queue(extra: Partial<React.ComponentProps<typeof AssessmentWorkspace>> 
 describe('Role dashboards and dedicated queues', () => {
   it('counts AI scripts for the selected school workspace rather than legacy submissions', async () => {
     workspace();
-    expect(await screen.findByText('7 scripts across 1 batches')).toBeVisible();
+    expect(await screen.findByText('7 scripts / 1 batch')).toBeVisible();
     const card=screen.getByRole('button',{name:/Teacher review.*2/});
     await userEvent.click(card);
     const table=screen.getByRole('table');
@@ -45,15 +45,17 @@ describe('Role dashboards and dedicated queues', () => {
   });
   it('opens failed processing in the marking queue', async () => {
     workspace();
-    const failed = await screen.findByRole('button', {name:/Failed processing/});
+    const failed = await screen.findByRole('button', {name:/Retry failed processing/});
     await waitFor(() => expect(failed).toBeEnabled());
     await userEvent.click(failed);
     expect(within(screen.getByRole('table')).getByText('C002')).toBeVisible();
   });
-  it('shows allocated faculty modules for lecturers', async () => {
-    workspace('Lecturer', true);
-    expect(await screen.findByText('Science · ICT101 · Computing')).toBeVisible();
-    expect(screen.queryByText('Grade 10 · Mathematics',{selector:'li'})).not.toBeInTheDocument();
+  it.each(['Lecturer','Professor'])('shows allocated faculty modules for %s', async role => {
+    workspace(role, true);
+    expect(await screen.findByRole('heading',{name:'Computing'})).toBeVisible();
+    expect(screen.getByText('Science',{exact:true})).toBeVisible();
+    expect(screen.getByText(`${role} overview`)).toBeVisible();
+    expect(screen.getByRole('navigation',{name:'Workspace'})).toHaveTextContent('Academic review');
   });
   it.each([['HOD','Moderation'],['Principal','Approvals']])('lands %s in their own queue', async (role,title) => {
     workspace(role);
@@ -83,8 +85,8 @@ describe('Role dashboards and dedicated queues', () => {
     await userEvent.click(screen.getByRole('button',{name:'Open script C003'}));
     const input=await screen.findByLabelText('Confirmed mark · Question 1');
     expect(await screen.findByLabelText('Approved memorandum viewer')).toBeVisible();
-    await userEvent.clear(screen.getByLabelText('Learner feedback � Question 1'));
-    await userEvent.type(screen.getByLabelText('Learner feedback � Question 1'),'Show each calculation.');
+    await userEvent.clear(screen.getByLabelText('Learner feedback · Question 1'));
+    await userEvent.type(screen.getByLabelText('Learner feedback · Question 1'),'Show each calculation.');
     await userEvent.clear(screen.getByLabelText('Reviewed overall learner feedback'));
     await userEvent.type(screen.getByLabelText('Reviewed overall learner feedback'),'Good method; show each calculation.');
     await userEvent.clear(input); await userEvent.type(input,'8');

@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check, Eye, Upload, X } from 'lucide-react';
-import { uploadWithProgress, type OrganisationSelection } from '../auth/session';
+import { request, uploadWithProgress, type OrganisationSelection } from '../auth/session';
 import type { Academics } from './types';
 import { markingLanguages } from './markingLanguages';
 import { inspectUpload, type FileInspection } from './inspectUpload';
@@ -17,6 +17,8 @@ export default function UploadWizard({ selection, academics, manager, onUploaded
   const school = selection.organisationType === 'school';
   const allocations = academics.allocations.filter(a => a.grade !== null);
   const grades = manager ? [8, 9, 10, 11, 12] : [...new Set(allocations.map(a => a.grade!))].sort();
+  const [versions, setVersions] = useState<{id:string;paperName:string;memoName:string}[]>([]); const [previousBatchId,setPreviousBatchId] = useState('');
+  useEffect(()=>{const c=new AbortController();void request<{id:string;paperName:string;memoName:string}[]>('/api/institution/documents',{signal:c.signal}).then(value=>{if(Array.isArray(value))setVersions(value);}).catch(()=>{});return()=>c.abort();},[]);
   const [step, setStep] = useState(0); const [title, setTitle] = useState('');
   const [grade, setGrade] = useState(grades[0] || 10); const [subject, setSubject] = useState(manager ? 'Mathematics' : allocations[0]?.subject || '');
   const [term, setTerm] = useState(1); const [facultyId, setFacultyId] = useState(academics.faculties[0]?.id || '');
@@ -79,7 +81,7 @@ export default function UploadWizard({ selection, academics, manager, onUploaded
   async function upload() {
     if (uploading || savedId) return;
     setError(''); setUploading(true); setProgress(0); controller.current = new AbortController();
-    const context = { title: title.trim(), scriptLanguage, memoLanguage, school: school ? { grade, subject: subject.trim(), term, assessmentType, schoolType, pathway, weightPercent: 0 } : null, institution: school ? null : { moduleId, academicYear: year, semester, assessmentType, weightPercent: 0 } };
+    const context = { previousBatchId: previousBatchId || null, title: title.trim(), scriptLanguage, memoLanguage, school: school ? { academicYear: year, grade, subject: subject.trim(), term, assessmentType, schoolType, pathway, weightPercent: 0 } : null, institution: school ? null : { moduleId, academicYear: year, semester, assessmentType, weightPercent: 0 } };
     const form = new FormData(); form.append('context', JSON.stringify(context)); form.append('paper', paper!); form.append('memo', memo!);
     scripts.forEach(s => form.append('scripts', s.file, `${s.candidate.trim()}.${s.file.name.split('.').pop()}`));
     try {
@@ -96,7 +98,7 @@ export default function UploadWizard({ selection, academics, manager, onUploaded
     {error && <p className="alert error" role="alert">{error}</p>}
     {savedId ? <div className="alert success" role="status">Your originals are saved. AI marking can start when a trained local model is ready.<button className="secondary" onClick={onClose}>Back to queue</button></div> : <form onSubmit={event => { event.preventDefault(); if (step < 3) void advance(); else void upload(); }}>
       <fieldset disabled={uploading || checking}>
-      {step === 0 && <><div className="academic-form-grid">{school ? <>
+      {step === 0 && <><div className="academic-form-grid">{school ? <><label>Academic year<input type="number" min={2000} max={2200} value={year} onChange={e=>setYear(Number(e.target.value))}/></label>
         <label>Grade<select value={grades.includes(grade) ? grade : ''} onChange={e => { const g = Number(e.target.value); setGrade(g); if (!manager) setSubject(allocations.find(a => a.grade === g)?.subject || ''); }} required><option value="" disabled>Select grade</option>{grades.map(g => <option key={g} value={g}>Grade {g}</option>)}</select></label>
         <label>Subject{manager ? <input required maxLength={200} value={subject} onChange={e => setSubject(e.target.value)}/> : <select value={subject} onChange={e => setSubject(e.target.value)} required><option value="" disabled>Select subject</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}</label>
         <label>Term<select value={term} onChange={e => setTerm(Number(e.target.value))}>{[1,2,3,4].map(t => <option key={t}>{t}</option>)}</select></label>
@@ -108,7 +110,7 @@ export default function UploadWizard({ selection, academics, manager, onUploaded
         <label>Academic year<input type="number" min={2000} max={2100} value={year} onChange={e => setYear(Number(e.target.value))} required/></label><label>Semester<select value={semester} onChange={e => setSemester(Number(e.target.value))}><option value={1}>1</option><option value={2}>2</option></select></label>
       </>}<label>Assessment type<select value={assessmentType} onChange={e => setAssessmentType(e.target.value)}>{['Test','Examination','Assignment','Project','Practical','Other'].map(t => <option key={t}>{t}</option>)}</select></label></div>
         {!contextAllowed && <p className="alert">Ask your administrator to allocate your grade and subject or faculty module.</p>}
-        <label>Batch title<input required maxLength={200} value={title} onChange={e => setTitle(e.target.value)} placeholder={school ? 'Grade 10 Mathematics · Term 3' : 'Module examination · Semester 1'}/></label></>}
+        <label>Document revision<select value={previousBatchId} onChange={e=>setPreviousBatchId(e.target.value)}><option value="">New assessment</option>{versions.map(v=><option key={v.id} value={v.id}>Revision of {v.paperName} / {v.memoName}</option>)}</select></label><label>Batch title<input required maxLength={200} value={title} onChange={e => setTitle(e.target.value)} placeholder={school ? 'Grade 10 Mathematics · Term 3' : 'Module examination · Semester 1'}/></label></>}
       {step === 1 && <><div className="academic-form-grid"><label>Script language<select value={scriptLanguage} onChange={e => setScriptLanguage(e.target.value)}><option value="auto">Detect automatically</option><option value="mixed">Mixed languages</option>{markingLanguages.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select></label><label>Memorandum language<select value={memoLanguage} onChange={e => setMemoLanguage(e.target.value)}><option value="auto">Detect automatically</option><option value="mixed">Mixed languages</option>{markingLanguages.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select></label></div>
         <label>Existing question paper<input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={e => { setPaper(e.target.files?.[0] || null); setDocumentChecks({}); }}/></label>{paper && <p>{paper.name} <button className="secondary" type="button" onClick={() => setPreview(paper)}><Eye size={14}/>Preview paper</button></p>}
         <label>Approved memorandum / rubric<input type="file" accept=".pdf,.png,.jpg,.jpeg" onChange={e => { setMemo(e.target.files?.[0] || null); setDocumentChecks({}); }}/></label>{memo && <p>{memo.name} <button className="secondary" type="button" onClick={() => setPreview(memo)}><Eye size={14}/>Preview memorandum</button></p>}

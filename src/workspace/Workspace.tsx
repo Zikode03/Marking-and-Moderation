@@ -7,20 +7,26 @@ import AssessmentWorkspace from './AssessmentWorkspace';
 import StaffWorkspace from './StaffWorkspace';
 import MarkingDashboard from './MarkingDashboard';
 import AiTrainingWorkspace from './AiTrainingWorkspace';
+import type { ManagedRecord } from './institutionModules';
 import { useMarkingFeed, workRows, type QueueKind } from './markingData';
 import { emptyAcademics, type Academics, type Assessment, type RunAction } from './types';
+import InstitutionWorkspace from './InstitutionWorkspace';
+import { TasksWorkspace, ReportsWorkspace, AuditWorkspace, StaffAccessWorkspace, AssignmentWorkspace, DocumentsWorkspace, TaskNotifications, InviteStaffWorkspace } from './OperationsWorkspace';
 import './workspace.css';
 
-type Page = 'Overview' | 'Structure' | 'Staff' | 'Training' | QueueKind;
+type Page = 'Overview' | 'Structure' | 'Staff' | 'Training' | 'Administration' | 'Learners' | 'Tasks' | 'Reports' | 'Audit' | 'Access' | 'Assignments' | 'Documents' | QueueKind;
 export default function Workspace({ session }: { session: Session }) {
   const { profile, selection } = session; const { logout } = useAuth();
   const school = selection.organisationType === 'school';
   const canMark = profile.roles.some(role => (school ? ['Teacher', 'AcademicAdmin'] : ['Lecturer', 'Professor', 'AcademicAdmin']).includes(role));
-  const canModerate = profile.roles.some(role => ['HOD', 'AcademicAdmin'].includes(role));
+  const canModerate = profile.roles.some(role => ['HOD', 'Moderator', 'AcademicAdmin'].includes(role));
   const canApprove = profile.roles.some(role => ['Principal', 'SchoolAdmin', 'AcademicAdmin'].includes(role));
   const manager = profile.roles.some(role => ['SchoolAdmin', 'AcademicAdmin'].includes(role));
   const canUpload = canMark || manager;
   const [page, setPage] = useState<Page>(canModerate && !canMark ? 'moderation' : canApprove && !canUpload ? 'approval' : 'Overview');
+  const [institutionProfile,setInstitutionProfile] = useState<ManagedRecord>();
+  useEffect(()=>{const c=new AbortController();const loadProfile=()=>{void request<ManagedRecord[]>('/api/institution/records/institution',{signal:c.signal}).then(rows=>{if(Array.isArray(rows))setInstitutionProfile(rows.find(r=>r.active));}).catch(()=>{});};loadProfile();window.addEventListener('prospera:institution-updated',loadProfile);return()=>{c.abort();window.removeEventListener('prospera:institution-updated',loadProfile);};},[]);
+  const [reportCandidate,setReportCandidate] = useState('');
   const [queue, setQueue] = useState<QueueKind>('marking');
   const [academics, setAcademics] = useState<Academics>(emptyAcademics); const [allAssessments, setAssessments] = useState<Assessment[]>([]);
   const [error, setError] = useState(''); const [notice, setNotice] = useState(''); const [busy, setBusy] = useState(false); const [loading, setLoading] = useState(true);
@@ -28,10 +34,16 @@ export default function Workspace({ session }: { session: Session }) {
   const structureTitle = school ? 'Grades & subjects' : 'Faculties & modules'; const staffTitle = school ? 'Teaching staff' : 'Academic staff';
   const navigation: { name: Page; label: string; icon: typeof LayoutDashboard }[] = [
     { name: 'Overview', label: 'Overview', icon: LayoutDashboard }, { name: 'Training', label: 'AI & Training', icon: BrainCircuit }, { name: 'marking', label: 'AI marking', icon: BookOpenCheck },
-    ...(canMark ? [{ name: 'review' as const, label: 'Teacher review', icon: BookOpenCheck }] : []),
+    ...(canMark ? [{ name: 'review' as const, label: school ? 'Teacher review' : 'Academic review', icon: BookOpenCheck }] : []),
     ...(canModerate ? [{ name: 'moderation' as const, label: 'Moderation', icon: ListChecks }] : []),
     ...(canApprove ? [{ name: 'approval' as const, label: 'Approvals', icon: ShieldCheck }] : []),
     { name: 'completed', label: 'Completed', icon: CheckCheck }, { name: 'Structure', label: structureTitle, icon: school ? GraduationCap : Building2 },
+    {name:'Documents',label:'Assessment documents',icon:BookOpenCheck},
+    {name:'Tasks',label:'Tasks & notifications',icon:ListChecks}, {name:'Reports',label:'Results & reports',icon:CheckCheck},
+    ...(canModerate ? [{name:'Assignments' as const,label:'Moderation assignments',icon:ListChecks}] : []),
+    ...(manager || canModerate || canApprove ? [{name:'Learners' as const,label:'Learners & enrolments',icon:GraduationCap}] : []),
+    ...(manager ? [{name:'Administration' as const,label:'Institution management',icon:Building2},{name:'Audit' as const,label:'Audit history',icon:ShieldCheck}] : []),
+    ...(profile.roles.includes('SchoolAdmin') ? [{name:'Access' as const,label:'Staff access',icon:Users}] : []),
     ...(manager ? [{ name: 'Staff' as const, label: staffTitle, icon: Users }] : []),
   ];
   const assessments = useMemo(() => allAssessments.filter(a => school ? !!a.school : !!a.institution), [allAssessments, school]);
@@ -55,12 +67,21 @@ export default function Workspace({ session }: { session: Session }) {
   const activeQueue = isQueue ? page as QueueKind : queue;
   function openQueue(next: QueueKind) { setPage(next); setQueue(next); setNotice(''); }
   function openUpload() { openQueue('marking'); setUploadRequest(value => value + 1); }
-  const heading = page === 'Training' ? 'AI & Training' : page === 'Structure' ? structureTitle : page === 'Staff' ? staffTitle : page === 'marking' ? 'AI marking' : page === 'review' ? 'Teacher review' : page === 'moderation' ? 'Moderation' : page === 'approval' ? 'Approvals' : page === 'completed' ? 'Completed' : 'Your workspace';
-  return <div className={`shell ${school ? 'school-workspace' : 'institution-workspace'} ${isQueue ? 'queue-workspace' : ''}`}><aside className="sidebar"><div className="brand"><div className="brandicon">{school ? <GraduationCap size={25}/> : <Building2 size={24}/>}</div><div><strong>PROSPERA</strong><span>ASSESS</span></div></div><div className="small-label">{school ? 'SCHOOL · GRADES 8–12' : 'INSTITUTION · FACULTIES'}</div><nav aria-label="Workspace">{navigation.map(({ name, label, icon: Icon }) => <button key={name} className={page === name ? 'active' : ''} aria-current={page === name ? 'page' : undefined} onClick={() => { if (['marking','review','moderation','approval','completed'].includes(name)) openQueue(name as QueueKind); else { setPage(name); setNotice(''); } }}><Icon size={18}/>{label}{page === name && <ArrowRight size={14} className="push"/>}</button>)}</nav><div className="sidebar-bottom"><ShieldCheck size={17}/><span className="workspace-email">{profile.email}</span><small className="workspace-role">{roleLabel(profile.roles)}</small><button className="signout" onClick={logout}>Sign out</button><small>{selection.sector === 'public' ? 'Public' : 'Private'} {school ? 'school' : 'institution'}{selection.organisationType === 'school' ? ` · ${selection.pathway === 'ieb' ? 'IEB' : 'CAPS / DBE'}` : ''}</small></div></aside>
-    <main><header><div><div className="eyebrow">{school ? 'SCHOOL WORKSPACE' : 'INSTITUTION WORKSPACE'}</div><h1>{heading}</h1><p>{school ? 'Grade 8–12 subjects · AI marking, teacher review, HOD moderation and approval' : 'Faculties & modules · AI marking, human moderation and approval'}</p></div><button className="secondary" disabled={busy || loading} onClick={() => void run(async () => { await Promise.all([load(), feed.refresh()]); }, 'Workspace refreshed')}><RefreshCw size={16}/>Refresh</button></header>
+  const moduleHeadings: Partial<Record<Page,string>> = {Documents:'Assessment documents',Administration:'Institution management',Learners:'Learners & enrolments',Tasks:'Tasks & notifications',Reports:'Results & reports',Audit:'Audit history',Access:'Staff access',Assignments:'Moderation assignments'};
+  const heading = moduleHeadings[page] || (page === 'Training' ? 'AI & Training' : page === 'Structure' ? structureTitle : page === 'Staff' ? staffTitle : page === 'marking' ? 'AI marking' : page === 'review' ? (school ? 'Teacher review' : 'Academic review') : page === 'moderation' ? 'Moderation' : page === 'approval' ? 'Approvals' : page === 'completed' ? 'Completed' : 'Your workspace');
+  return <div className={`shell ${school ? 'school-workspace' : 'institution-workspace'} ${isQueue ? 'queue-workspace' : ''}`}><aside className="sidebar" style={institutionProfile?.fields.brandColor?{borderTop:`6px solid ${institutionProfile.fields.brandColor}`}:undefined}><div className="brand"><div className="brandicon">{school ? <GraduationCap size={25}/> : <Building2 size={24}/>}</div><div><strong>{institutionProfile?.name||'PROSPERA'}</strong><span>{institutionProfile?'PROSPERA ASSESS':'ASSESS'}</span></div></div><div className="small-label">{school ? 'SCHOOL · GRADES 8–12' : 'INSTITUTION · FACULTIES'}</div><nav aria-label="Workspace">{navigation.map(({ name, label, icon: Icon }) => <button key={name} className={page === name ? 'active' : ''} aria-current={page === name ? 'page' : undefined} onClick={() => { if (['marking','review','moderation','approval','completed'].includes(name)) openQueue(name as QueueKind); else { setPage(name); setNotice(''); } }}><Icon size={18}/>{label}{page === name && <ArrowRight size={14} className="push"/>}</button>)}</nav><div className="sidebar-bottom"><ShieldCheck size={17}/><span className="workspace-email">{profile.email}</span><small className="workspace-role">{roleLabel(profile.roles)}</small><button className="signout" onClick={logout}>Sign out</button><small>{selection.sector === 'public' ? 'Public' : 'Private'} {school ? 'school' : 'institution'}{selection.organisationType === 'school' ? ` · ${selection.pathway === 'ieb' ? 'IEB' : 'CAPS / DBE'}` : ''}</small></div></aside>
+    <main><TaskNotifications onOpen={()=>setPage('Tasks')}/><header><div><div className="eyebrow">{school ? 'SCHOOL WORKSPACE' : 'INSTITUTION WORKSPACE'}</div><h1>{heading}</h1><p>{school ? 'Grade 8–12 subjects · AI marking, teacher review, HOD moderation and approval' : 'Faculties & modules · AI marking, human moderation and approval'}</p></div><button className="secondary" disabled={busy || loading} onClick={() => void run(async () => { await Promise.all([load(), feed.refresh()]); }, 'Workspace refreshed')}><RefreshCw size={16}/>Refresh</button></header>
       {error && <div className="alert error" role="alert">{error}<button className="secondary" onClick={() => void run(() => load(), 'Workspace loaded')}>Retry</button></div>}{notice && <div className="alert success" role="status">{notice}</div>}
       {loading ? <div className="panel academic-empty" role="status">Loading your academic workspace…</div> : <>
-        {page === 'Overview' && <>{feed.error && <p className="alert error" role="alert">{feed.error}</p>}<MarkingDashboard school={school} academics={academics} rows={rows} model={feed.model} loading={feed.loading} canReview={canMark} canUpload={canUpload} canModerate={canModerate} canApprove={canApprove} manager={manager} onQueue={openQueue} onUpload={openUpload}/></>}
+        {page === 'Overview' && <>{feed.error && <p className="alert error" role="alert">{feed.error}</p>}<MarkingDashboard educatorRole={roleLabel(profile.roles)} school={school} academics={academics} rows={rows} model={feed.model} loading={feed.loading} canReview={canMark} canUpload={canUpload} canModerate={canModerate} canApprove={canApprove} manager={manager} onQueue={openQueue} onUpload={openUpload}/></>}
+        {page === 'Administration' && manager && <InstitutionWorkspace academics={academics} assessments={assessments} manager={manager}/>}
+        {page === 'Learners' && (manager || canModerate || canApprove) && <InstitutionWorkspace academics={academics} assessments={assessments} manager={manager} learnersOnly onHistory={candidate=>{setReportCandidate(candidate);setPage('Reports');}}/>}
+        {page === 'Documents' && <DocumentsWorkspace canModerate={canModerate}/>}
+        {page === 'Tasks' && <TasksWorkspace onQueue={openQueue}/>}
+        {page === 'Reports' && <ReportsWorkspace initialCandidate={reportCandidate}/>}
+        {page === 'Audit' && manager && <AuditWorkspace/>}
+        {page === 'Access' && profile.roles.includes('SchoolAdmin') && <><InviteStaffWorkspace academics={academics}/><StaffAccessWorkspace/></>}
+        {page === 'Assignments' && canModerate && <AssignmentWorkspace rows={rows}/>}
         {page === 'Training' && <AiTrainingWorkspace feed={feed} assessments={assessments} canLabel={canMark} canVerify={canModerate} manager={manager} canUpload={canUpload} onUpload={openUpload}/>}
         {page === 'Structure' && <AcademicStructure selection={selection} academics={academics} assessments={assessments} manager={manager} busy={busy} run={run}/>}
         <div hidden={!isQueue}><AssessmentWorkspace selection={selection} academics={academics} assessments={assessments} manager={manager} busy={busy} run={run} canModerate={canModerate} canApprove={canApprove} canReview={canMark} canUpload={canUpload} canLabel={canMark} feed={feed} queue={activeQueue} onQueueChange={openQueue} uploadRequest={uploadRequest} active={isQueue}/></div>
