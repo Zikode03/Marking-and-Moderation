@@ -1,0 +1,139 @@
+name: prospera-staging
+services:
+  gateway:
+    image: caddy:2.10-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN to the staging hostname}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [edge]
+  frontend:
+    build:
+      context: .
+      args:
+        VITE_API_URL: ""
+        VITE_ENABLE_TRAINING_STUDIO: "false"
+    healthcheck:
+      test: [CMD-SHELL, "wget -q -O /dev/null http://127.0.0.1/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      api:
+        condition: service_started
+    restart: unless-stopped
+    networks: [edge, application]
+  api:
+    mem_limit: 1g
+    cpus: 2
+    user: app
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: [/tmp]
+    build:
+      context: ${BACKEND_CONTEXT:?Set BACKEND_CONTEXT to a clean backend checkout at BACKEND_REF}
+      target: api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Staging
+      ASPNETCORE_URLS: http://0.0.0.0:5080
+      AllowedHosts: ${APP_DOMAIN}
+      App__PublicUrl: https://${APP_DOMAIN}
+      Cors__Origins__0: https://${APP_DOMAIN}
+      Database__Initialize: "false"
+      Storage__RequireEncryptionAtRest: "true"
+      Storage__TenantQuotaBytes: ${TENANT_STORAGE_QUOTA_BYTES:-10737418240}
+      Uploads__ScannerHost: clamav
+      Uploads__ScannerPort: "3310"
+      OpenApi__Enabled: "true"
+      Authentication__DataProtectionApplicationName: ProsperaAssess
+      DataProtection__KeyDirectory: /var/prospera/keys
+      Authentication__UseRefreshCookies: "true"
+      Authentication__RequireAdminMfa: "true"
+      AI__ServiceUrl: http://ai:8000/
+      ReverseProxy__Enabled: "true"
+      ReverseProxy__KnownNetwork: 172.30.0.0/24
+      Mail__Host: ${SMTP_HOST:?Set SMTP_HOST}
+      Mail__Port: ${SMTP_PORT:-587}
+      Mail__From: ${SMTP_FROM:?Set SMTP_FROM}
+      Mail__Username: ${SMTP_USERNAME:?Set SMTP_USERNAME}
+      SalesMail__Recipient: prosperacore.tech@gmail.com
+    secrets:
+      - source: api-db
+        target: ConnectionStrings__Default
+      - source: monitor-key
+        target: Monitoring__ApiKey
+      - source: smtp-password
+        target: Mail__Password
+    volumes:
+      - api-keys:/var/prospera/keys
+    depends_on:
+      ai:
+        condition: service_started
+      clamav:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [application]
+  dbmigrator:
+    profiles: [tools]
+    build:
+      context: ${BACKEND_CONTEXT}
+      target: dbmigrator
+    secrets:
+      - source: migration-db
+        target: ConnectionStrings__Default
+    environment:
+      DOTNET_ENVIRONMENT: Production
+    networks: [application]
+  clamav:
+    mem_limit: 2g
+    cpus: 2
+    image: clamav/clamav:stable@sha256:bda39705e291105049c3936e2803ac90b955172af8030f94f05dce1252df6c6d
+    platform: linux/amd64
+    volumes:
+      - clamav-signatures:/var/lib/clamav
+    restart: unless-stopped
+    networks: [application]
+  ai:
+    mem_limit: 2g
+    cpus: 2
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile.ai
+    environment:
+      PROSPERA_MODEL_DIR: /models
+      PROSPERA_MODEL_MODULE: ${PROSPERA_MODEL_MODULE:-}
+    volumes:
+      - ${PROSPERA_MODEL_PATH:-./.local/training/deployed}:/models:ro
+    restart: unless-stopped
+    networks: [application]
+secrets:
+  api-db:
+    file: ${API_DB_SECRET_FILE:?Set API_DB_SECRET_FILE}
+  migration-db:
+    file: ${MIGRATION_DB_SECRET_FILE:?Set MIGRATION_DB_SECRET_FILE}
+  monitor-key:
+    file: ${MONITOR_KEY_FILE:?Set MONITOR_KEY_FILE}
+  smtp-password:
+    file: ${SMTP_PASSWORD_FILE:?Set SMTP_PASSWORD_FILE}
+networks:
+  edge:
+  application:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+volumes:
+  caddy-data:
+  caddy-config:
+  api-keys:
+  clamav-signatures:

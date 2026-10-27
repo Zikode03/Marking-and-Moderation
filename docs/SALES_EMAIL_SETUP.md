@@ -25,3 +25,5 @@ Stop debugging and restart the API after rebuilding so the new endpoint and sett
 For hosting, provide the same settings through server secrets or `SalesMail__Host`, `SalesMail__Port`, `SalesMail__From`, `SalesMail__Username`, and `SalesMail__Password`. Never expose them as `VITE_` variables.
 
 Docker Compose forwards optional `SALES_SMTP_HOST`, `SALES_SMTP_PORT`, `SALES_SMTP_FROM`, `SALES_SMTP_USERNAME`, and `SALES_SMTP_PASSWORD` from the untracked Docker environment file. The Docker backend source mirror includes this endpoint.
+
+The staging profile now uses shared `Mail:Host`, `Mail:Port`, `Mail:From`, `Mail:Username`, and mounted `Mail:Password` for account and sales email. See STAGING_AND_SECURITY.md. Legacy SalesMail settings remain supported for local compatibility.

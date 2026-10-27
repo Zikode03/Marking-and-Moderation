@@ -32,13 +32,18 @@ def render_pages(content, content_type, dpi=150):
         try:
             if not 1 <= len(document) <= 100:
                 raise ValueError('PDF must contain 1 to 100 pages')
+            total_pixels = 0
             for index in range(len(document)):
                 page = document[index]
                 bitmap = None
                 try:
                     width, height = page.get_size()
-                    if width * height * (dpi / 72) ** 2 > 25_000_000:
+                    pixels = width * height * (dpi / 72) ** 2
+                    total_pixels += pixels
+                    if pixels > 25_000_000:
                         raise ValueError('PDF page is too large')
+                    if total_pixels > 100_000_000:
+                        raise ValueError('Split this document: total rendered size is too large')
                     bitmap = page.render(scale=dpi / 72)
                     yield bitmap.to_pil().convert('RGB').copy()
                 finally:

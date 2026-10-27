@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, BookOpenCheck, Building2, Check, CheckCircle2, Eye, EyeOff,
   GraduationCap, LifeBuoy, LoaderCircle, LockKeyhole, Mail, ShieldCheck } from 'lucide-react';
 import { useAuth } from './AuthProvider';
-import { loginError, type OrganisationType, type Sector, type OrganisationSelection } from './session';
+import { ApiError, loginError, type OrganisationType, type Sector, type OrganisationSelection } from './session';
 import './signin.css';
 import LandingPage from './LandingPage';
 
@@ -25,6 +25,9 @@ export default function SignIn() {
   const [pathway, setPathway] = useState<'caps' | 'ieb' | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [needsMfa, setNeedsMfa] = useState(false);
+  const [mfaCode, setMfaCode] = useState('');
+  const [recoveryCode, setRecoveryCode] = useState(false);
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -51,7 +54,7 @@ export default function SignIn() {
       else setSector(null);
     } else if (stage === 'pathway') { setSector(null); setPathway(null); }
     else { setOrganisationType(null); setSector(null); setPathway(null); }
-    setError(''); setPassword(''); setVisible(false); setHelp(false);
+    setError(''); setPassword(''); setVisible(false); setHelp(false); setNeedsMfa(false); setMfaCode('');
   }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -60,15 +63,16 @@ export default function SignIn() {
     submitting.current = true;
     setBusy(true);
     setError('');
-    try { await login(email, password, selection); }
+    try { if (needsMfa) await login(email, password, selection, recoveryCode ? { twoFactorRecoveryCode: mfaCode } : { twoFactorCode: mfaCode }); else await login(email, password, selection); }
     catch (cause) {
+      if (cause instanceof ApiError && cause.requiresTwoFactor) setNeedsMfa(true);
       setError(loginError(cause));
       requestAnimationFrame(() => errorRef.current?.focus());
     } finally { submitting.current = false; setBusy(false); }
   }
 
-  return <LandingPage onStart={() => setPortalOpen(true)}><dialog ref={portalDialog} className="landing-auth-dialog" aria-label="Staff sign in" onCancel={event => { if (busy || restoring) { event.preventDefault(); return; } setPortalOpen(false); setPassword(''); }}>
-    <button className="landing-auth-close" aria-label="Close sign in" disabled={busy || restoring} onClick={() => { setPortalOpen(false); setPassword(''); }}>�</button>
+  return <LandingPage onStart={() => setPortalOpen(true)}><dialog ref={portalDialog} className="landing-auth-dialog" aria-label="Staff sign in" onCancel={event => { if (busy || restoring) { event.preventDefault(); return; } setPortalOpen(false); setPassword(''); setMfaCode(''); setNeedsMfa(false); }}>
+    <button className="landing-auth-close" aria-label="Close sign in" disabled={busy || restoring} onClick={() => { setPortalOpen(false); setPassword(''); setMfaCode(''); setNeedsMfa(false); }}>×</button>
     <div className="signin-shell" data-step={stage}>
     <aside className="signin-story" aria-label="About Prospera Assess">
       <a className="signin-brand" href="/" aria-label="Prospera Assess home">
@@ -79,7 +83,7 @@ export default function SignIn() {
         <span className="signin-kicker"><span /> THE THINKING BEHIND EVERY MARK</span>
         <h1>Every answer.<br /><em>A clearer picture.</em></h1>
         <p>A clearer assessment process, with academic judgement at the centre.</p>
-        <div className="signin-story-photo" role="img" aria-label="Educator working in a library" />
+        <div className="signin-story-photo" role="img" aria-label="Scripts, memorandum and marking review" />
       </div>
       <div className="signin-story-footer"><ShieldCheck size={17} /><span>Your organisation. Your team. Clear accountability.</span></div>
     </aside>
@@ -113,6 +117,8 @@ export default function SignIn() {
             <form onSubmit={submit} className="signin-form" aria-busy={busy}>
               <label htmlFor="signin-email">Email address</label><div className="signin-field"><Mail size={18} aria-hidden="true" /><input autoFocus id="signin-email" name="email" type="email" autoComplete="username" placeholder={organisationType === 'institution' ? 'you@yourinstitution.ac.za' : 'you@yourschool.co.za'} value={email} onChange={event => { setEmail(event.target.value); setError(''); }} disabled={busy} required maxLength={256} /></div>
               <label htmlFor="signin-password">Password</label><div className="signin-field"><LockKeyhole size={18} aria-hidden="true" /><input id="signin-password" name="password" type={visible ? 'text' : 'password'} autoComplete="current-password" placeholder="Enter your password" value={password} onChange={event => { setPassword(event.target.value); setError(''); }} disabled={busy} required maxLength={1024} /><button className="signin-reveal" type="button" aria-label={visible ? 'Hide password' : 'Show password'} aria-pressed={visible} disabled={busy} onClick={() => setVisible(value => !value)}>{visible ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>
+              {needsMfa && <div className="signin-mfa"><label htmlFor="signin-mfa-code">{recoveryCode ? 'Recovery code' : 'Authenticator code'}</label><input id="signin-mfa-code" value={mfaCode} onChange={event => setMfaCode(event.target.value)} autoComplete="one-time-code" inputMode={recoveryCode ? 'text' : 'numeric'} required maxLength={100}/><button className="signin-help-toggle" type="button" onClick={() => { setRecoveryCode(value => !value); setMfaCode(''); }}>{recoveryCode ? 'Use an authenticator code' : 'Use a recovery code'}</button></div>}
+              <a className="signin-recovery-link" href="/forgot-password">Forgot your password?</a>
               <button className="signin-submit" type="submit" disabled={busy || !selection || !email.trim() || !password}>{busy ? <><LoaderCircle className="signin-spinner" size={18} />Signing in…</> : <>Sign in to {organisationType === 'institution' ? 'institution' : 'school'}<ArrowRight size={18} /></>}</button>
             </form>
           </>}

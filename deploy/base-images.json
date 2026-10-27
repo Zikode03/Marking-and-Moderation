@@ -1,0 +1,9 @@
+{
+  "node:22-alpine": "sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914",
+  "nginx:alpine": "sha256:a3554c0d0b48177b1413c26e01f695334428020d9df01243fbae3e11cfd17417",
+  "python:3.12-slim": "sha256:12316debbfb86890f6b2d825820612741ba527ad5a44e3902759141d572bfe8f",
+  "caddy:2.10-alpine": "sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d",
+  "mcr.microsoft.com/dotnet/sdk:10.0": "sha256:de4fe90a98845d75910b9769662465c84de1a934665c431279d1382b2bddc02b",
+  "mcr.microsoft.com/dotnet/aspnet:10.0": "sha256:de0ee358cdd672f7017a003bed21e9ac9ed48a27c922a59b18175b6e82fa7fee",
+  "clamav/clamav:stable": "sha256:bda39705e291105049c3936e2803ac90b955172af8030f94f05dce1252df6c6d"
+}

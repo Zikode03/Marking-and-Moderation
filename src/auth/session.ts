@@ -6,10 +6,11 @@ export type OrganisationSelection =
   | { organisationType: 'school'; sector: Sector; pathway: 'caps' | 'ieb' };
 export type Profile = { email: string; schoolId: string; roles: string[]; organisationType?: OrganisationType | null; sector?: Sector | null };
 export type Session = { profile: Profile; portal: Portal; selection: OrganisationSelection };
-type Tokens = { accessToken: string; refreshToken: string };
-type SavedSession = { version: 3; refreshToken: string; selection: OrganisationSelection };
+export type TwoFactorInput = { twoFactorCode?: string; twoFactorRecoveryCode?: string };
+export type Tokens = { accessToken: string; refreshToken: string; subject?: string };
+type SavedSession = { version: 3; refreshToken: string; selection: OrganisationSelection; subject?: string };
 
-const API = (import.meta.env.VITE_API_URL || 'http://localhost:5080').replace(/\/$/, '');
+const API = (import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:5080' : '')).replace(/\/$/, '');
 const STORAGE_KEY = 'prospera.session.v3';
 export const SESSION_ENDED = 'prospera:session-ended';
 let accessToken = '';
@@ -19,7 +20,7 @@ let renewal: Promise<void> | null = null;
 let restoration: Promise<Session | null> | null = null;
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(public status: number, message: string, public requiresTwoFactor = false) {
     super(message);
     this.name = 'ApiError';
   }
@@ -42,7 +43,7 @@ async function send<T>(path: string, init: RequestInit = {}, token = ''): Promis
   }
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    throw new ApiError(response.status, data.error || data.detail || data.title || 'Something went wrong. Please try again.');
+    throw new ApiError(response.status, data.error || data.detail || data.title || 'Something went wrong. Please try again.', data.requiresTwoFactor === true);
   }
   if (response.status === 204) return undefined as T;
   if (new Headers(init.headers).get('Accept') === 'application/octet-stream') return await response.blob() as T;
@@ -107,17 +108,17 @@ function checkTokens(tokens: Tokens) {
   if (!tokens.accessToken || !tokens.refreshToken) throw new ApiError(500, 'Sign-in could not be completed. Please try again.');
 }
 
-export async function signIn(email: string, password: string, selection: OrganisationSelection): Promise<Session> {
+export async function signIn(email: string, password: string, selection: OrganisationSelection, twoFactor?: TwoFactorInput): Promise<Session> {
   if (!validSelection(selection)) throw new ApiError(400, 'Choose your organisation type, public or private, and school assessment pathway before signing in.');
   const attempt = generation;
-  const tokens = await send<Tokens>('/login', { method: 'POST', body: JSON.stringify({ email: email.trim(), password }) });
+  const tokens = await send<Tokens>('/login', { method: 'POST', body: JSON.stringify({ email: email.trim(), password, ...twoFactor }) });
   checkTokens(tokens);
   const profile = await send<Profile>('/api/me', {}, tokens.accessToken);
   const portal = accountPortal(profile);
   validateAcademicRole(profile, selection);
   if (attempt !== generation) throw new ApiError(401, 'Sign-in was cancelled. Please try again.');
   accessToken = tokens.accessToken;
-  persist({ version: 3, refreshToken: tokens.refreshToken, selection });
+  persist({ version: 3, refreshToken: tokens.refreshToken, selection, subject: tokens.subject });
   return { profile, portal, selection };
 }
 
@@ -129,9 +130,10 @@ async function renewAccess() {
   renewal = (async () => {
     const tokens = await send<Tokens>('/refresh', { method: 'POST', body: JSON.stringify({ refreshToken: current.refreshToken }) });
     checkTokens(tokens);
+    if (current.subject && tokens.subject !== current.subject) throw new ApiError(401, 'This browser signed into a different account. Sign in again.');
     if (attempt !== generation) throw new ApiError(401, 'Your session has ended. Please sign in again.');
     accessToken = tokens.accessToken;
-    persist({ ...current, refreshToken: tokens.refreshToken });
+    persist({ ...current, refreshToken: tokens.refreshToken, subject: tokens.subject ?? current.subject });
   })().finally(() => { renewal = null; });
   return renewal;
 }
@@ -206,6 +208,7 @@ export function restoreSession(): Promise<Session | null> {
 
 export function loginError(error: unknown): string {
   if (error instanceof ApiError) {
+    if (error.requiresTwoFactor) return error.message;
     if (error.status === 401) return 'The email or password is incorrect, or your account needs attention. Check your details or contact your school administrator.';
     if (error.status === 429) return 'Too many attempts. Please wait a minute before trying again.';
     if (error.status >= 500) return 'Sign-in is temporarily unavailable. Please try again shortly.';
@@ -217,4 +220,20 @@ export function loginError(error: unknown): string {
 export function roleLabel(roles: string[]): string {
   return roles.map(role => ({ SchoolAdmin: 'School administrator', Teacher: 'Teacher', Lecturer: 'Lecturer', Professor: 'Professor', HOD: 'Head of department',
     Principal: 'Principal', AcademicAdmin: 'Academic administrator' }[role] || role)).join(' · ');
+}
+
+export function publicRequest<T>(path: string, init?: RequestInit) { return send<T>(path, init); }
+export function adoptSessionTokens(tokens: Tokens) {
+  checkTokens(tokens);
+  const current = readSaved();
+  if (!current) throw new ApiError(401, 'Sign in again to continue.');
+  if (current.subject && tokens.subject !== current.subject) throw new ApiError(401, 'The browser account changed. Sign in again.');
+  accessToken = tokens.accessToken;
+  persist({ ...current, refreshToken: tokens.refreshToken, subject: tokens.subject ?? current.subject });
+}
+
+export async function signOut() {
+  try { await publicRequest('/api/account/logout', {method:'POST', body:'{}', signal:AbortSignal.timeout(3000)}); }
+  catch { /* Clear local credentials even if the server is temporarily unavailable. */ }
+  finally { clearSession(); }
 }

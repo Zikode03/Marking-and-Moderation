@@ -1,11 +1,11 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { clearSession, restoreSession, signIn, SESSION_ENDED, type OrganisationSelection, type Session } from './session';
+import { signOut, restoreSession, signIn, SESSION_ENDED, type OrganisationSelection, type Session, type TwoFactorInput } from './session';
 
 type AuthState = {
   session: Session | null;
   restoring: boolean;
   message: string;
-  login: (email: string, password: string, selection: OrganisationSelection) => Promise<void>;
+  login: (email: string, password: string, selection: OrganisationSelection, twoFactor?: TwoFactorInput) => Promise<void>;
   logout: () => void;
 };
 const AuthContext = createContext<AuthState | null>(null);
@@ -28,16 +28,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => { active = false; window.removeEventListener(SESSION_ENDED, ended); };
   }, []);
 
-  async function login(email: string, password: string, selection: OrganisationSelection) {
-    const value = await signIn(email, password, selection);
+  async function login(email: string, password: string, selection: OrganisationSelection, twoFactor?: TwoFactorInput) {
+    const value = await signIn(email, password, selection, twoFactor);
     setMessage('');
     setSession(value);
   }
-  function logout() {
-    clearSession();
-    setSession(null);
-    setMessage('');
+  async function logout() {
+    setRestoring(true);
+    try { await signOut(); }
+    finally { setSession(null); setMessage(''); setRestoring(false); }
   }
+
   return <AuthContext.Provider value={{ session, restoring, message, login, logout }}>{children}</AuthContext.Provider>;
 }
 

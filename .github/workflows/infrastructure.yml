@@ -1,0 +1,47 @@
+name: Deployment configuration and scanner checks
+on:
+  pull_request:
+    paths: ['deploy/**', 'scripts/**', 'compose*.yml', 'Dockerfile*', '.github/workflows/infrastructure.yml']
+  workflow_dispatch:
+jobs:
+  infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: docker compose --env-file .env.staging.example -f compose.staging.yml --profile tools config --quiet
+      - run: docker compose --env-file .env.staging.example --env-file .env.bootstrap.example -f compose.staging.yml -f compose.bootstrap.yml --profile tools config --quiet
+      - name: Check PowerShell syntax
+        shell: pwsh
+        run: |
+          Get-ChildItem scripts/*.ps1 | ForEach-Object {
+            $parseErrors=$null
+            [System.Management.Automation.Language.Parser]::ParseFile($_.FullName,[ref]$null,[ref]$parseErrors) > $null
+            if($parseErrors.Count){throw $parseErrors}
+          }
+      - name: Check the real pinned scanner
+        shell: bash
+        run: |
+          scanner="$(python -c "import json; print('clamav/clamav:stable@'+json.load(open('deploy/base-images.json'))['clamav/clamav:stable'])")"
+          docker run -d --name prospera-test-scanner --memory 2g -p 127.0.0.1:3310:3310 "$scanner"
+          python scripts/Test-UploadScanner.py
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.ai
+          push: false
+          cache-from: type=gha,scope=ai
+          cache-to: type=gha,mode=max,scope=ai
+      - name: Remove only the test scanner
+        if: always()
+        run: docker rm -f -v prospera-test-scanner || true

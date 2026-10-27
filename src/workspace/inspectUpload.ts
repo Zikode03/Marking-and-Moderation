@@ -14,7 +14,7 @@ export async function inspectUpload(file: File): Promise<FileInspection> {
   if (pdf) {
     const library = await import('pdfjs-dist'); library.GlobalWorkerOptions.workerSrc = workerUrl;
     const task = library.getDocument({ data: bytes });
-    try { pages = (await task.promise).numPages; if (pages > 1000) throw new Error('Split documents longer than 1,000 pages.'); }
+    try { pages = (await task.promise).numPages; if (pages > 100) throw new Error('Split documents longer than 100 pages.'); }
     finally { await task.destroy(); }
   } else {
     const url = URL.createObjectURL(file);

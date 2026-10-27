@@ -21,7 +21,7 @@ services:
   dbmigrator:
     profiles: ["tools"]
     build:
-      context: .local/backend
+      context: ${BACKEND_CONTEXT:-../Marking-and-Moderation-backend}
       dockerfile: Dockerfile
       target: dbmigrator
     environment:
@@ -34,7 +34,7 @@ services:
         condition: service_healthy
   api:
     build:
-      context: .local/backend
+      context: ${BACKEND_CONTEXT:-../Marking-and-Moderation-backend}
       dockerfile: Dockerfile
     container_name: marking-moderation-api
     environment:

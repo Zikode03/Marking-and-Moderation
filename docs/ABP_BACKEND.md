@@ -1,6 +1,6 @@
 # ABP backend architecture
 
-The backend is a layered ABP 9.3.6 application on .NET 9. Package versions are pinned in Directory.Build.props. Business HTTP routes remain compatible with the existing React client.
+The backend is a layered ABP 10.7.0 application on .NET 10. Package versions are pinned in Directory.Build.props. Business HTTP routes remain compatible with the existing React client.
 
 ## Solution layout
 
@@ -71,3 +71,5 @@ The regression suite includes legacy client behaviour, allocation/organisation a
 Architecture references: [ABP entities](https://abp.io/docs/9.3/framework/architecture/domain-driven-design/entities), [EF Core integration](https://abp.io/docs/9.3/framework/data/entity-framework-core), [unit of work](https://abp.io/docs/9.3/framework/architecture/domain-driven-design/unit-of-work), [authorization](https://abp.io/docs/9.3/framework/fundamentals/authorization).
 
 The host pins the previous project-root data-protection discriminator when started from the renamed HttpApi.Host directory, preserving the installed token protection purposes. Deployments with an explicitly configured older discriminator can set Authentication:DataProtectionApplicationName. Docker's existing /app content root and persisted key volume remain unchanged.
+
+The framework/runtime upgrade retains the installed identity store. See STAGING_AND_SECURITY.md for account recovery, MFA, cookies, revocation and OpenAPI verification.

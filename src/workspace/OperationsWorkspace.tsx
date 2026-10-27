@@ -337,12 +337,13 @@ export function InviteStaffWorkspace({
   const [moduleId, setModuleId] = useState('');
   const [link, setLink] = useState('');
   const [error, setError] = useState('');
+  const [mailMessage, setMailMessage] = useState('');
   const [busy, setBusy] = useState(false);
   async function invite(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError('');
-    setLink('');
+    setLink('');setMailMessage('');
     try {
       const result = await request<{
         invitationPath: string;
@@ -363,5 +364,10 @@ export function InviteStaffWorkspace({
       setBusy(false);
     }
   }
-  return <section className="panel"><h2>Invite staff</h2><p>Create a seven-day activation link. Share it privately with the intended staff member; they choose their own password.</p><form className="institution-form" onSubmit={e => void invite(e)}><label>Invitation email<input required type="email" value={email} onChange={e => setEmail(e.target.value)} /></label><label>Invitation role<select value={role} onChange={e => setRole(e.target.value)}>{['Teacher', 'Lecturer', 'Professor', 'HOD', 'Moderator', 'Principal', 'AcademicAdmin', 'SchoolAdmin'].map(r => <option key={r}>{r}</option>)}</select></label>{role === 'Teacher' && <><label>Initial grade<select value={grade} onChange={e => setGrade(e.target.value)}>{[8, 9, 10, 11, 12].map(g => <option key={g}>{g}</option>)}</select></label><label>Initial subject<input required maxLength={200} value={subject} onChange={e => setSubject(e.target.value)} /></label></>}{['Lecturer', 'Professor'].includes(role) && <label>Initial module<select required value={moduleId} onChange={e => setModuleId(e.target.value)}><option value="">Select module</option>{academics.modules.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}</select></label>}<button disabled={busy}>Create invitation link</button></form>{error && <p role="alert">{error}</p>}{link && <label>Private activation link<textarea readOnly value={link} /></label>}</section>;
+  async function sendInvitation() {
+    setBusy(true);setError('');setMailMessage('');
+    try { const token = new URLSearchParams(new URL(link).hash.slice(1)).get('token'); const result=await request<{message:string}>('/api/institution/invitations/email',{method:'POST',body:JSON.stringify({token})});setMailMessage(result.message); }
+    catch(cause){setError(cause instanceof Error?cause.message:'Could not send invitation.');}finally{setBusy(false);}
+  }
+  return <section className="panel"><h2>Invite staff</h2><p>Create a seven-day activation link. Share it privately with the intended staff member; they choose their own password.</p><form className="institution-form" onSubmit={e => void invite(e)}><label>Invitation email<input required type="email" value={email} onChange={e => setEmail(e.target.value)} /></label><label>Invitation role<select value={role} onChange={e => setRole(e.target.value)}>{['Teacher', 'Lecturer', 'Professor', 'HOD', 'Moderator', 'Principal', 'AcademicAdmin', 'SchoolAdmin'].map(r => <option key={r}>{r}</option>)}</select></label>{role === 'Teacher' && <><label>Initial grade<select value={grade} onChange={e => setGrade(e.target.value)}>{[8, 9, 10, 11, 12].map(g => <option key={g}>{g}</option>)}</select></label><label>Initial subject<input required maxLength={200} value={subject} onChange={e => setSubject(e.target.value)} /></label></>}{['Lecturer', 'Professor'].includes(role) && <label>Initial module<select required value={moduleId} onChange={e => setModuleId(e.target.value)}><option value="">Select module</option>{academics.modules.map(m => <option key={m.id} value={m.id}>{m.code} - {m.name}</option>)}</select></label>}<button disabled={busy}>Create invitation link</button></form>{error && <p role="alert">{error}</p>}{link && <><label>Private activation link<textarea readOnly value={link} /></label><button disabled={busy} onClick={()=>void sendInvitation()}>Email invitation</button></>}{mailMessage && <p role="status">{mailMessage}</p>}</section>;
 }

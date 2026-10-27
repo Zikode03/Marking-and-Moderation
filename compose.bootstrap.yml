@@ -1,0 +1,12 @@
+# Use only for the explicitly reviewed first-administrator bootstrap step.
+services:
+  dbmigrator:
+    environment:
+      Bootstrap__Email: ${BOOTSTRAP_EMAIL:?Set the first administrator email}
+      Bootstrap__SchoolId: ${BOOTSTRAP_SCHOOL_ID:?Set the organisation GUID}
+    secrets:
+      - source: bootstrap-password
+        target: Bootstrap__Password
+secrets:
+  bootstrap-password:
+    file: ${BOOTSTRAP_PASSWORD_FILE:?Set the private bootstrap password file}

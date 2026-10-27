@@ -1,0 +1,104 @@
+.account-recovery {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  max-width: none;
+  background: #f3f6f2;
+  padding: 24px;
+}
+.account-recovery > section {
+  width: min(100%, 480px);
+  background: white;
+  border: 1px solid #dfe7de;
+  border-radius: 16px;
+  padding: 32px;
+}
+.account-recovery h1 {
+  font-size: 26px;
+  margin: 20px 0 12px;
+}
+.account-recovery p,
+.account-security .panel > p {
+  font-size: 13px;
+  color: #657b6d;
+  line-height: 1.7;
+}
+.account-back {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #346550;
+  font-size: 13px;
+  margin-bottom: 28px;
+  text-decoration: none;
+}
+.account-recovery form,
+.account-security form {
+  display: grid;
+  gap: 14px;
+}
+.account-recovery label,
+.account-security label {
+  margin: 0;
+}
+.account-recovery [role='alert'],
+.account-security [role='alert'] {
+  color: #963f41;
+}
+.account-security {
+  display: grid;
+  gap: 22px;
+}
+.account-security .academic-section-heading {
+  margin-top: 0;
+}
+.account-mfa-key {
+  margin-top: 20px;
+  padding: 20px;
+  border-radius: 10px;
+  background: #f0f5ef;
+}
+.account-mfa-key > code {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 16px;
+  padding: 12px;
+  background: white;
+  border-radius: 7px;
+}
+.account-mfa-key button {
+  margin-top: 14px;
+}
+.account-recovery-codes {
+  padding: 20px;
+  margin-top: 22px;
+  border: 1px solid #c8dbc9;
+  border-radius: 12px;
+  background: #f5f9f2;
+}
+.account-recovery-codes ul {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.security-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 400;
+}
+.security-check input {
+  width: auto;
+  margin: 0;
+}
+.signin-recovery-link {
+  display: inline-block;
+  margin: 16px 0 0;
+  color: #376451;
+  font-size: 12px;
+}
+.signin-mfa input {
+  width: 100%;
+}

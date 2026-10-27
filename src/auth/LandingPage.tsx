@@ -28,7 +28,7 @@ export default function LandingPage({ onStart, children }: { onStart: () => void
     enquiryPending.current = true;
     setEnquiryStatus('sending'); setEnquiryError('');
     try {
-      const response = await fetch(`${(import.meta.env.VITE_API_URL || 'http://localhost:5080').replace(/\/$/, '')}/api/sales/enquiries`, {
+      const response = await fetch(`${(import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:5080' : '')).replace(/\/$/, '')}/api/sales/enquiries`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: data.get('Name'), email: data.get('Email'), organisation: data.get('Organisation'), requirements: data.get('Requirements') }),
         signal: AbortSignal.timeout(25000),

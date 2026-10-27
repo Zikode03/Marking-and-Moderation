@@ -301,3 +301,22 @@ describe('Organisation sign-in and account roles', () => {
     expect(screen.getByText('Your organisation sets up your account.')).toBeVisible();
   });
 });
+
+describe('Browser account binding',()=>{
+  it('does not retry an expired request as another account from a shared cookie',async()=>{
+    const selection={organisationType:'school',sector:'public',pathway:'caps'} as const;
+    let protectedCalls=0;
+    fetchMock.mockImplementation(async input=>{
+      const path=String(input);
+      if(path.endsWith('/login'))return json({...tokens,subject:'account-a'});
+      if(path.endsWith('/api/me'))return json(teacher);
+      if(path.endsWith('/refresh'))return json({...tokens,subject:'account-b'});
+      if(path.endsWith('/api/protected')){protectedCalls++;return json({},401);}
+      return json({},404);
+    });
+    await signIn(teacher.email,'Valid!Password2026',selection);
+    await expect(request('/api/protected')).rejects.toMatchObject({status:401});
+    expect(protectedCalls).toBe(1);
+    expect(sessionStorage.getItem('prospera.session.v3')).toBeNull();
+  });
+});
